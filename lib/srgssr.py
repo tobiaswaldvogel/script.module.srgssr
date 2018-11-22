@@ -70,6 +70,8 @@ class SRGSSR(object):
         self.language = LANGUAGE
         self.plugin_language = self.real_settings.getLocalizedString
         self.host_url = 'https://www.%s.ch' % bu
+        self.data_uri = ('special://home/addons/%s/resources/'
+                         'data') % self.addon_id
 
         # Plugin options:
         self.debug = self.get_boolean_setting(
@@ -1111,3 +1113,11 @@ class SRGSSR(object):
                 srf3_ids = get_srf3_live_ids()
                 for vid in srf3_ids:
                     self.build_episode_menu(vid, include_segments=False)
+
+    def read_youtube_channels(self, fname):
+        data_file = os.path.join(xbmc.translatePath(self.data_uri), fname)
+        with open(data_file, 'r') as f:
+            ch_content = json.load(f)
+            cids = [elem['channel'] for elem in ch_content.get('channels', [])]
+            return cids
+        return []
