@@ -251,7 +251,7 @@ class SRGSSR(object):
             }, {
                 # RTS on YouTube
                 'identifier': 'RTS_YouTube',
-                'name': self.plugin_language(30075),
+                'name': self.plugin_language(30074),
                 'mode': 30,
                 'displayItem': self.get_boolean_setting('RTS_YouTube')
             }
