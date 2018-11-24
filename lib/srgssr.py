@@ -705,7 +705,7 @@ class SRGSSR(object):
         title = json_entry.get('title')
         vid = json_entry.get('id')
         description = json_entry.get('description')
-
+        lead = json_entry.get('lead')
         image = json_entry.get('imageUrl', '')
         # RTS image links have a strange appendix '/16x9'.
         # This needs to be removed from the URL:
@@ -723,7 +723,8 @@ class SRGSSR(object):
             'video',
             {
                 'title': title,
-                'plot': description,
+                'plot': description or lead,
+                'plotoutline': lead,
                 'duration': duration,
                 'aired': kodi_date_string,
             }
