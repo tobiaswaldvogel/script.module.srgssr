@@ -318,7 +318,8 @@ class SRGSSR(object):
                 'video',
                 {
                     'title': title,
-                    'plot': utils.str_or_none(jse.get('lead')),
+                    'plot': utils.str_or_none(jse.get('lead'))
+                    or utils.str_or_none(jse.get('description')),
                 }
             )
 
@@ -329,7 +330,7 @@ class SRGSSR(object):
 
                 # Some image urls have '/16x9' appended, we need to
                 # remove this:
-                image_url = re.sub('/\d+x\d+', '', image_url)
+                image_url = re.sub(r'/\d+x\d+', '', image_url)
 
                 thumbnail = image_url + '/scale/width/668'\
                     if image_url else self.icon
@@ -719,7 +720,7 @@ class SRGSSR(object):
         image = json_entry.get('imageUrl', '')
         # RTS image links have a strange appendix '/16x9'.
         # This needs to be removed from the URL:
-        image = re.sub('/\d+x\d+', '', image)
+        image = re.sub(r'/\d+x\d+', '', image)
 
         duration = utils.int_or_none(json_entry.get('duration'), scale=1000)
         if not duration:
