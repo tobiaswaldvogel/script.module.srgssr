@@ -254,6 +254,12 @@ class SRGSSR(object):
                 'name': self.plugin_language(30074),
                 'mode': 30,
                 'displayItem': self.get_boolean_setting('RTS_YouTube')
+            }, {
+                # RSI on YouTube
+                'identifier': 'RSI_YouTube',
+                'name': self.plugin_language(30074),
+                'mode': 30,
+                'displayItem': self.get_boolean_setting('RSI_YouTube')
             }
         ]
         for item in main_menu_list:
