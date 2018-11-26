@@ -326,6 +326,11 @@ class SRGSSR(object):
                 image_url = utils.str_or_none(
                     jse['Image']['ImageRepresentations']
                     ['ImageRepresentation'][0]['url'])
+
+                # Some image urls have '/16x9' appended, we need to
+                # remove this:
+                image_url = re.sub('/\d+x\d+', '', image_url)
+
                 thumbnail = image_url + '/scale/width/668'\
                     if image_url else self.icon
                 banner = image_url.replace(
@@ -335,6 +340,7 @@ class SRGSSR(object):
             except (KeyError, IndexError):
                 image_url = self.fanart
                 thumbnail = self.icon
+                banner = None
 
             list_item.setArt({
                 'thumb': thumbnail,
@@ -380,7 +386,7 @@ class SRGSSR(object):
             try:
                 banner_image = utils.str_or_none(
                     response['show']['bannerImageUrl'], default='')
-                if banner_image.endswith('/3x1'):
+                if re.match(r'.+/\d+x\d+$', banner_image):
                     banner_image += '/scale/width/1000'
             except KeyError:
                 banner_image = None
@@ -445,7 +451,10 @@ class SRGSSR(object):
         try:
             banner_image = utils.str_or_none(
                 json_response['show']['bannerImageUrl'], default='')
-            if banner_image.endswith('/3x1'):
+
+            # Banner image urls sometimes end with '/3x1'. They are
+            # only accesible if we append '/scale/width/\d+':
+            if re.match(r'.+/\d+x\d+$', banner_image):
                 banner_image += '/scale/width/1000'
         except KeyError:
             banner_image = None
@@ -647,7 +656,8 @@ class SRGSSR(object):
         try:
             banner = utils.str_or_none(
                 json_response['show']['bannerImageUrl'], default='')
-            if banner.endswith('/3x1'):
+            # if banner.endswith('/3x1'):
+            if re.match(r'.+/\d+x\d+$', banner):
                 banner += '/scale/width/1000'
         except KeyError:
             banner = None
@@ -709,7 +719,7 @@ class SRGSSR(object):
         image = json_entry.get('imageUrl', '')
         # RTS image links have a strange appendix '/16x9'.
         # This needs to be removed from the URL:
-        image = image.strip('/16x9')
+        image = re.sub('/\d+x\d+', '', image)
 
         duration = utils.int_or_none(json_entry.get('duration'), scale=1000)
         if not duration:
