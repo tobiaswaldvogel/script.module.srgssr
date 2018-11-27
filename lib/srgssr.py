@@ -127,7 +127,6 @@ class SRGSSR(object):
         queries = (url, mode, name, page_hash, page)
         query_names = ('url', 'mode', 'name', 'page_hash', 'page')
         purl = sys.argv[0]
-        # purl='script.module.srgssr'
         for query, qname in zip(queries, query_names):
             if query:
                 add = '?' if not added else '&'
@@ -260,6 +259,12 @@ class SRGSSR(object):
                 'name': self.plugin_language(30074),
                 'mode': 30,
                 'displayItem': self.get_boolean_setting('RSI_YouTube')
+            }, {
+                # RTR on YouTube
+                'identifier': 'RTR_YouTube',
+                'name': self.plugin_language(30074),
+                'mode': 30,
+                'displayItem': self.get_boolean_setting('RTR_YouTube')
             }
         ]
         for item in main_menu_list:
@@ -276,16 +281,17 @@ class SRGSSR(object):
     def read_all_available_shows(self):
         """
         Downloads a list of all available shows and returns this list.
+
+        This works for the business units 'srf', 'rts', 'rsi' and 'rtr', but
+        not for 'swi'.
         """
         json_url = ('http://il.srgssr.ch/integrationlayer/1.0/ue/%s/tv/'
                     'assetGroup/editorialPlayerAlphabetical.json') % self.bu
         json_response = json.loads(self.open_url(json_url))
-        try:
-            show_list = json_response['AssetGroups']['Show']
-        except KeyError:
-            self.log('read_all_available_shows: No shows found.')
-            return []
-        if not isinstance(show_list, list) or not show_list:
+        show_list = utils.try_get(
+            json_response,
+            ('AssetGroups', 'Show'), data_type=list, default=[])
+        if not show_list:
             self.log('read_all_available_shows: No shows found.')
             return []
         return show_list
@@ -305,10 +311,9 @@ class SRGSSR(object):
 
         list_items = []
         for jse in show_list:
-            try:
-                title = utils.str_or_none(jse['title'])
-                show_id = utils.str_or_none(jse['id'])
-            except KeyError:
+            title = utils.try_get(jse, 'title')
+            show_id = utils.try_get(jse, 'id')
+            if not (title and show_id):
                 self.log(
                     'build_all_shows_menu: Skipping, no title or id found.')
                 continue
@@ -324,27 +329,22 @@ class SRGSSR(object):
                 'video',
                 {
                     'title': title,
-                    'plot': utils.str_or_none(jse.get('lead'))
-                    or utils.str_or_none(jse.get('description')),
+                    'plot': utils.try_get(jse, 'lead')
+                    or utils.try_get(jse, 'description'),
                 }
             )
 
-            try:
-                image_url = utils.str_or_none(
-                    jse['Image']['ImageRepresentations']
-                    ['ImageRepresentation'][0]['url'])
-
-                # Some image urls have '/16x9' appended, we need to
-                # remove this:
+            image_url = utils.try_get(
+                jse,
+                ('Image', 'ImageRepresentations',
+                 'ImageRepresentation', 0, 'url'))
+            if image_url:
                 image_url = re.sub(r'/\d+x\d+', '', image_url)
-
-                thumbnail = image_url + '/scale/width/668'\
-                    if image_url else self.icon
+                thumbnail = image_url + '/scale/width/688'
                 banner = image_url.replace(
                     'WEBVISUAL',
-                    'HEADER_%s_PLAYER' % self.bu.upper()
-                    ) if image_url else None
-            except (KeyError, IndexError):
+                    'HEADER_SRF_PLAYER')
+            else:
                 image_url = self.fanart
                 thumbnail = self.icon
                 banner = None
@@ -390,25 +390,25 @@ class SRGSSR(object):
                                             current_month_date)
             self.log('build_newest_favourite_menu. Open URL %s.' % json_url)
             response = json.loads(self.open_url(json_url))
-            try:
-                banner_image = utils.str_or_none(
-                    response['show']['bannerImageUrl'], default='')
-                if re.match(r'.+/\d+x\d+$', banner_image):
-                    banner_image += '/scale/width/1000'
-            except KeyError:
-                banner_image = None
+            banner_image = utils.try_get(
+                response,
+                ('show', 'bannerImageUrl'))
+            if re.match(r'.+/\d+x\d+$', banner_image):
+                banner_image += '/scale/width/1000'
 
-            episode_list = response.get('episodes', [])
+            episode_list = utils.try_get(
+                response, 'episodes', data_type=list, default=[])
             for episode in episode_list:
                 date_time = utils.parse_datetime(
-                    utils.str_or_none(episode.get('date'), default=''))
+                    utils.try_get(episode, 'date'))
                 if date_time and \
                         date_time >= now + datetime.timedelta(-number_of_days):
                     list_of_episodes_dict.append(episode)
-                    banners.update({episode.get('id'): banner_image})
+                    banners.update(
+                        {utils.try_get(episode, 'id'): banner_image})
         sorted_list_of_episodes_dict = sorted(
             list_of_episodes_dict, key=lambda k: utils.parse_datetime(
-                utils.str_or_none(k.get('date'), default='')), reverse=True)
+                utils.try_get(k, 'date')), reverse=True)
         try:
             page = int(page)
         except TypeError:
@@ -416,10 +416,11 @@ class SRGSSR(object):
         reduced_list = sorted_list_of_episodes_dict[
             (page - 1)*self.number_of_episodes:page*self.number_of_episodes]
         for episode in reduced_list:
-            segments = episode.get('segments', [])
+            segments = utils.try_get(
+                episode, 'segments', data_type=list, default=[])
             is_folder = True if segments and self.segments else False
             self.build_entry(
-                episode, banner=banners.get(episode.get('id')),
+                episode, banner=utils.try_get(episode, 'id'),
                 is_folder=is_folder)
 
         if len(sorted_list_of_episodes_dict) > page * self.number_of_episodes:
@@ -456,8 +457,8 @@ class SRGSSR(object):
         json_response = json.loads(self.open_url(json_url))
 
         try:
-            banner_image = utils.str_or_none(
-                json_response['show']['bannerImageUrl'], default='')
+            banner_image = utils.try_get(
+                json_response, ('show', 'bannerImageUrl'))
 
             # Banner image urls sometimes end with '/3x1'. They are
             # only accesible if we append '/scale/width/\d+':
@@ -468,20 +469,21 @@ class SRGSSR(object):
 
         next_page_hash = None
         if 'nextPageUrl' in json_response:
-            next_page_url = utils.str_or_none(
-                json_response.get('nextPageUrl'), default='')
+            next_page_url = utils.try_get(json_response, 'nextPageUrl')
             next_page_hash_regex = r'nextPageHash=(?P<hash>[0-9a-f]+)'
             match = re.search(next_page_hash_regex, next_page_url)
             if match:
                 next_page_hash = match.group('hash')
 
-        json_episode_list = json_response.get('episodes', [])
+        json_episode_list = utils.try_get(
+            json_response, 'episodes', data_type=list, default=[])
         if not json_episode_list:
             self.log('No episodes for show %s found.' % show_id)
             return
 
         for episode_entry in json_episode_list:
-            segments = episode_entry.get('segments', [])
+            segments = utils.try_get(
+                episode_entry, 'segments', data_type=list, default=[])
             enable_segments = True if self.segments and segments else False
             self.build_entry(
                 episode_entry, banner=banner_image, is_folder=enable_segments)
@@ -523,7 +525,7 @@ class SRGSSR(object):
             list_item = xbmcgui.ListItem(label=elem.get('title'))
             list_item.setProperty('IsPlayable', 'false')
             list_item.setArt({'thumb': self.icon})
-            name = elem.get('id')
+            name = utils.try_get(elem, 'id')
             if name:
                 purl = self.build_url(mode=mode, name=name)
                 xbmcplugin.addDirectoryItem(
@@ -646,8 +648,8 @@ class SRGSSR(object):
                      % video_id)
             return
 
-        chapter_urn = json_response.get('chapterUrn', '')
-        segment_urn = json_response.get('segmentUrn', '')
+        chapter_urn = utils.try_get(json_response, 'chapterUrn')
+        segment_urn = utils.try_get(json_response, 'segmentUrn')
 
         id_regex = r'[a-z]+:[a-z]+:[a-z]+:(?P<id>.+)'
         match_chapter_id = re.match(id_regex, chapter_urn)
@@ -661,18 +663,17 @@ class SRGSSR(object):
             return
 
         try:
-            banner = utils.str_or_none(
-                json_response['show']['bannerImageUrl'], default='')
-            # if banner.endswith('/3x1'):
+            banner = utils.try_get(json_response, ('show', 'bannerImageUrl'))
             if re.match(r'.+/\d+x\d+$', banner):
                 banner += '/scale/width/1000'
         except KeyError:
             banner = None
 
-        json_chapter_list = json_response.get('chapterList', [])
+        json_chapter_list = utils.try_get(
+            json_response, 'chapterList', data_type=list, default=[])
         json_chapter = None
         for chapter in json_chapter_list:
-            if chapter.get('id') == chapter_id:
+            if utils.try_get(chapter, 'id') == chapter_id:
                 json_chapter = chapter
                 break
         if not json_chapter:
@@ -680,7 +681,8 @@ class SRGSSR(object):
                 for video_id %s' % video_id)
             return
 
-        json_segment_list = json_chapter.get('segmentList', [])
+        json_segment_list = utils.try_get(
+            json_chapter, 'segmentList', data_type=list, default=[])
         if video_id == chapter_id:
             if include_segments:
                 # Generate entries for the whole video and
@@ -698,7 +700,7 @@ class SRGSSR(object):
         else:
             json_segment = None
             for segment in json_segment_list:
-                if segment.get('id') == segment_id:
+                if utils.try_get(segment, 'id') == segment_id:
                     json_segment = segment
                     break
             if not json_segment:
@@ -719,19 +721,25 @@ class SRGSSR(object):
         is_folder  -- indicates if the item is a folder (default: False)
         """
         self.log('build_entry')
-        title = json_entry.get('title')
-        vid = json_entry.get('id')
-        description = json_entry.get('description')
-        lead = json_entry.get('lead')
-        image = json_entry.get('imageUrl', '')
+        title = utils.try_get(json_entry, 'title')
+        vid = utils.try_get(json_entry, 'id')
+        description = utils.try_get(json_entry, 'description')
+        lead = utils.try_get(json_entry, 'lead')
+        image = utils.try_get(json_entry, 'imageUrl')
+
         # RTS image links have a strange appendix '/16x9'.
         # This needs to be removed from the URL:
         image = re.sub(r'/\d+x\d+', '', image)
 
-        duration = utils.int_or_none(json_entry.get('duration'), scale=1000)
-        if not duration:
-            duration = utils.get_duration(json_entry.get('duration'))
-        date_string = utils.str_or_none(json_entry.get('date'), default='')
+        duration = utils.try_get(
+            json_entry, 'duration', data_type=int, default=None)
+        if duration:
+            duration = duration // 1000  # needs fix for Python 3
+        else:
+            duration = utils.get_duration(
+                utils.try_get(json_entry, 'duration'))
+
+        date_string = utils.try_get(json_entry, 'date')
         dto = utils.parse_datetime(date_string)
         kodi_date_string = dto.strftime('%Y-%m-%d') if dto else None
 
@@ -751,10 +759,12 @@ class SRGSSR(object):
             'poster': image,
             'banner': banner,
         })
-        subs = json_entry.get('subtitleList', [])
+        subs = utils.try_get(
+            json_entry, 'subtitleList', data_type=list, default=[])
         if subs and self.subtitles:
-            subtitle_list = [x.get('url') for x in subs if
-                             x.get('format') == 'VTT']
+            subtitle_list = [
+                utils.try_get(x, 'url') for x in subs
+                if utils.try_get(x, 'format') == 'VTT']
             if subtitle_list:
                 list_item.setSubtitles(subtitle_list)
             else:
@@ -898,13 +908,16 @@ class SRGSSR(object):
         self.log('play_video. Open URL %s' % json_url)
         json_response = json.loads(self.open_url(json_url))
 
-        chapter_list = json_response.get('chapterList', [])
+        chapter_list = utils.try_get(
+            json_response, 'chapterList', data_type=list, default=[])
         if not chapter_list:
             self.log('play_video: no stream URL found.')
             return
 
-        first_chapter = chapter_list[0]
-        resource_list = first_chapter.get('resourceList', [])
+        first_chapter = utils.try_get(
+            chapter_list, 0, data_type=dict, default={})
+        resource_list = utils.try_get(
+            first_chapter, 'resourceList', data_type=list, default=[])
         if not resource_list:
             self.log('play_video: no stream URL found.')
             return
@@ -914,10 +927,10 @@ class SRGSSR(object):
             'HD': '',
         }
         for resource in resource_list:
-            if resource.get('protocol') == 'HLS':
+            if utils.try_get(resource, 'protocol') == 'HLS':
                 for key in ('SD', 'HD'):
-                    if resource.get('quality') == key:
-                        stream_urls[key] = resource.get('url')
+                    if utils.try_get(resource, 'quality') == key:
+                        stream_urls[key] = utils.try_get(resource, 'url')
 
         if not stream_urls['SD'] and not stream_urls['HD']:
             self.log('play_video: no stream URL found.')
@@ -930,14 +943,19 @@ class SRGSSR(object):
         auth_url = self.get_auth_url(stream_url)
 
         start_time = end_time = None
-        if 'segmentUrn' in json_response:  # video_id is the ID of a segment
-            segment_list = first_chapter.get('segmentList', [])
+        if utils.try_get(json_response, 'segmentUrn'):
+            segment_list = utils.try_get(
+                first_chapter, 'segmentList', data_type=list, default=[])
             for segment in segment_list:
-                if segment.get('id') == video_id:
-                    start_time = utils.float_or_none(
-                        segment.get('markIn'), scale=1000)
-                    end_time = utils.float_or_none(
-                        segment.get('markOut'), scale=1000)
+                if utils.try_get(segment, 'id') == video_id:
+                    start_time = utils.try_get(
+                        segment, 'markIn', data_type=int, default=None)
+                    if start_time:
+                        start_time = start_time // 1000  # fix it for Python 3
+                    end_time = utils.try_get(
+                        segment, 'markOut', data_type=int, default=None)
+                    if end_time:
+                        end_time = end_time // 1000  # fix it for Python 3
                     break
 
             if start_time and end_time:
@@ -1049,14 +1067,16 @@ class SRGSSR(object):
         overview_url = '%s/play/tv/live/overview' % self.host_url
         overview_json = json.loads(
             self.open_url(overview_url, use_cache=False))
-        urns = [x['urn'] for x in overview_json['teaser']]
+        urns = [utils.try_get(x, 'urn') for x in utils.try_get(
+            overview_json, 'teaser', data_type=list, default=[])
+            if utils.try_get(x, 'urn')]
         for urn in urns:
             json_url = ('https://il.srgssr.ch/integrationlayer/2.0/'
                         'mediaComposition/byUrn/%s.json') % urn
             info_json = json.loads(self.open_url(json_url, use_cache=False))
-            try:
-                json_entry = info_json['chapterList'][0]
-            except (KeyError, IndexError):
+            json_entry = utils.try_get(
+                info_json, ('chapterList', 0), data_type=dict, default={})
+            if not json_entry:
                 self.log('build_tv_menu: Unexpected json structure '
                          'for element %s' % urn)
                 continue
@@ -1110,18 +1130,17 @@ class SRGSSR(object):
             for lid in live_ids:
                 api_url = ('https://event.api.swisstxt.ch/v1/events/'
                            '%s/byEventItemId/?eids=%s') % (self.bu, lid)
-                try:
-                    live_json = json.loads(self.open_url(api_url))
-                    entry = live_json[0]
-                except Exception:
+                live_json = json.loads(self.open_url(api_url))
+                entry = utils.try_get(live_json, 0, data_type=dict, default={})
+                if not entry:
                     self.log('build_live_menu: No entry found '
                              'for live id %s.' % lid)
                     continue
-                if entry.get('streamType') == 'noStream':
+                if utils.try_get(entry, 'streamType') == 'noStream':
                     continue
-                title = entry.get('title')
-                stream_url = entry.get('hls')
-                image = entry.get('imageUrl')
+                title = utils.try_get(entry, 'title')
+                stream_url = utils.try_get(entry, 'hls')
+                image = utils.try_get(entry, 'imageUrl')
                 item = xbmcgui.ListItem(label=title)
                 item.setProperty('IsPlayable', 'true')
                 item.setArt({'thumb': image})

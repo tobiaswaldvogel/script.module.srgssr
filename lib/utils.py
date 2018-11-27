@@ -28,6 +28,34 @@ except NameError:
     CompatStr = str  # Python3
 
 
+def try_get(dictionary, keys, data_type=CompatStr, default=''):
+    """
+    Accesses a nested dictionary in a save way.
+
+    Keyword Arguments:
+    dictionary   -- the dictionary to access
+    keys         -- either a tuple/list containing the keys that should be
+                    accessed, or a string/int if only one key should be
+                    accessed
+    data_type    -- the expected data type of the final element
+                    (default: CompatStr)
+    default      -- a default value to return (default: '')
+    """
+    d = dictionary
+    try:
+        if isinstance(keys, tuple) or isinstance(keys, list):
+            for key in keys:
+                d = d[key]
+            if isinstance(d, data_type):
+                return d
+            return default
+        if isinstance(d[keys], data_type):
+            return d[keys]
+        return default
+    except (KeyError, IndexError, TypeError):
+        return default
+
+
 def assemble_query_string(query_list):
     """
     Assembles a query for an URL and returns the assembled query string.
