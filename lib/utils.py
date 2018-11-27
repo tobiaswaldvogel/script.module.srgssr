@@ -83,48 +83,6 @@ def str_or_none(inp, default=None):
         return inp
 
 
-def int_or_none(val, scale=1, invscale=1, default=None):
-    """
-    Convert an input value to an integer (if possible), otherwise
-    return a default value.
-
-    Keyword arguments:
-    val      -- input value
-    scale    -- divide the input by this value (default: 1)
-    invscale -- multiply the input by this value (default: 1)
-    default  -- the default return value (default: None)
-    """
-    if val == '':
-        val = None
-    if val is None:
-        return default
-    try:
-        return int(val) * invscale // scale
-    except ValueError:
-        return default
-
-
-def float_or_none(val, scale=1, invscale=1, default=None):
-    """
-    Convert an input value to a float (if possible), otherwise
-    return a default value.
-
-    Keyword arguments:
-    val      -- input value
-    scale    -- divide the input by this value (default: 1)
-    invscale -- multiply the input by this value (default: 1)
-    default  -- the default return value (default: None)
-    """
-    if val == '':
-        val = None
-    if val is None:
-        return default
-    try:
-        return float(val) * float(invscale) / float(scale)
-    except ValueError:
-        return default
-
-
 def get_duration(duration_string):
     """
     Converts a duration string into an integer respresenting the
