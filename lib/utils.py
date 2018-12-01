@@ -121,8 +121,6 @@ def parse_datetime(input_string):
     Keyword arguments:
     input_string -- a string to convert into a datetime object
     """
-    # input_string = str(input_string)
-    # print(input_string)
     date_time = _parse_weekday_time(input_string)
     if date_time:
         return date_time
@@ -130,9 +128,6 @@ def parse_datetime(input_string):
     if date_time:
         return date_time
     date_time = _parse_date_time_tz(input_string)
-    if not date_time:
-        # log('parse_datetime: Could not parse input string %s' % input_string)
-        pass
     return date_time
 
 
@@ -153,7 +148,7 @@ def _parse_date_time_tz(input_string):
                         \d{4}-\d{2}-\d{2}T\d{2}(:|h)\d{2}:\d{2}
                     )
                     (?P<tz>
-                        [-+]\d{2}(:|h)\d{2}
+                        (?:[-+]\d{2}(:|h)\d{2}|Z)
                     )
                 '''
     match = re.match(dt_regex, input_string)
