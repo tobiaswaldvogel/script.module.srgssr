@@ -1160,3 +1160,22 @@ class SRGSSR(object):
             cids = [elem['channel'] for elem in ch_content.get('channels', [])]
             return cids
         return []
+
+    def build_youtube_main_menu(self):
+        items = [{
+            'name': 'Channels',  # TODO: LANGUAGE
+            'mode': 31,
+        }, {
+            'name': 'Newest Videos',  # TODO: LANGUAGE
+            'mode': 32,
+        }]
+
+        for item in items:
+            list_item = xbmcgui.ListItem(label=item['name'])
+            list_item.setProperty('IsPlayable', 'false')
+            list_item.setArt({
+                'icon': self.icon,
+            })
+            purl = self.build_url(mode=item['mode'])
+            xbmcplugin.addDirectoryItem(
+                self.handle, purl, list_item, isFolder=True)
