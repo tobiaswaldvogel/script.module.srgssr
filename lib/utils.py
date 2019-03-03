@@ -43,7 +43,7 @@ def try_get(dictionary, keys, data_type=CompatStr, default=''):
     """
     d = dictionary
     try:
-        if isinstance(keys, tuple) or isinstance(keys, list):
+        if isinstance(keys, (list, tuple)):
             for key in keys:
                 d = d[key]
             if isinstance(d, data_type):
