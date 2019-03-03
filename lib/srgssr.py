@@ -916,8 +916,11 @@ class SRGSSR(object):
 
         first_chapter = utils.try_get(
             chapter_list, 0, data_type=dict, default={})
+        chapter = next(
+            (e for e in chapter_list if e.get('id') == video_id),
+            first_chapter)
         resource_list = utils.try_get(
-            first_chapter, 'resourceList', data_type=list, default=[])
+            chapter, 'resourceList', data_type=list, default=[])
         if not resource_list:
             self.log('play_video: no stream URL found.')
             return
@@ -945,7 +948,7 @@ class SRGSSR(object):
         start_time = end_time = None
         if utils.try_get(json_response, 'segmentUrn'):
             segment_list = utils.try_get(
-                first_chapter, 'segmentList', data_type=list, default=[])
+                chapter, 'segmentList', data_type=list, default=[])
             for segment in segment_list:
                 if utils.try_get(segment, 'id') == video_id:
                     start_time = utils.try_get(
