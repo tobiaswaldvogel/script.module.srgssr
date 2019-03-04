@@ -55,10 +55,19 @@ socket.setdefaulttimeout(TIMEOUT)
 
 
 def get_params():
+    """
+    Parses the Kodi plugin URL and returns its parameters
+    in a dictionary.
+    """
     return dict(urlparse.parse_qsl(sys.argv[2][1:]))
 
 
 class SRGSSR(object):
+    """
+    Base class for all SRG SSR related plugins.
+    Everything that can be done independently from the business unit
+    (SRF, RTS, RSI, etc.) should be done here.
+    """
     def __init__(self, plugin_handle, bu='srf', addon_id=ADDON_ID):
         self.handle = plugin_handle
         self.cache = SimpleCache()
@@ -89,6 +98,12 @@ class SRGSSR(object):
         self.number_of_episodes = 10
 
     def get_boolean_setting(self, setting):
+        """
+        Returns the boolean value of a specified setting.
+
+        Keyword arguments
+        setting  -- the setting option to check
+        """
         return self.real_settings.getSetting(setting) == 'true'
 
     def log(self, msg, level=xbmc.LOGDEBUG):
@@ -329,8 +344,8 @@ class SRGSSR(object):
                 'video',
                 {
                     'title': title,
-                    'plot': utils.try_get(jse, 'lead')
-                    or utils.try_get(jse, 'description'),
+                    'plot': utils.try_get(
+                        jse, 'lead') or utils.try_get(jse, 'description'),
                 }
             )
 
@@ -576,15 +591,15 @@ class SRGSSR(object):
         number_of_videos = 50
         if name == 'Newest':
             url = '%s/play/tv/topic/%s/latest?numberOfVideos=%s' % (
-                   self.host_url, topic_id, number_of_videos)
+                self.host_url, topic_id, number_of_videos)
             mode = 22
         elif name == 'Most clicked':
             url = '%s/play/tv/topic/%s/mostClicked?numberOfVideos=%s' % (
-                   self.host_url, topic_id, number_of_videos)
+                self.host_url, topic_id, number_of_videos)
             mode = 23
         elif name == 'Soon offline':
             url = '%s/play/tv/videos/soon-offline-videos?numberOfVideos=%s' % (
-                   self.host_url, number_of_videos)
+                self.host_url, number_of_videos)
             mode = 15
         elif name == 'Trending':
             url = ('%s/play/tv/videos/trending?numberOfVideos=%s'
@@ -1093,75 +1108,73 @@ class SRGSSR(object):
     #         self.build_entry(json_entry)
 
     def build_live_menu(self, extract_srf3=False):
+        """
+        Builds the menu listing the currently available livestreams.
+        """
+        def get_live_ids():
             """
-            Builds the menu listing the currently available livestreams.
+            Downloads the main webpage and scrapes it for
+            possible livestreams. If some live events were found, a list
+            of live ids will be returned, otherwise an empty list.
             """
-            def get_live_ids():
-                """
-                Downloads the main webpage and scrapes it for
-                possible livestreams. If some live events were found, a list
-                of live ids will be returned, otherwise an empty list.
-                """
-                webpage = self.open_url(self.host_url, use_cache=False)
-                id_regex = r'data-sport-id=\"(?P<live_id>\d+)\"'
-                live_ids = []
-                try:
-                    for match in re.finditer(id_regex, webpage):
-                        live_ids.append(match.group('live_id'))
-                except StopIteration:
-                    pass
-                return live_ids
+            webpage = self.open_url(self.host_url, use_cache=False)
+            id_regex = r'data-sport-id=\"(?P<live_id>\d+)\"'
+            live_ids = []
+            try:
+                for match in re.finditer(id_regex, webpage):
+                    live_ids.append(match.group('live_id'))
+            except StopIteration:
+                pass
+            return live_ids
 
-            def get_srf3_live_ids():
-                """
-                Returns a list of Radio SRF 3 video streams.
-                """
-                url = 'https://www.srf.ch/radio-srf-3'
-                webpage = self.open_url(url, use_cache=False)
-                video_id_regex = r'''(?x)
-                                       popupvideoplayer\?id=
-                                       (?P<video_id>
-                                           [a-f0-9]{8}-
-                                           [a-f0-9]{4}-
-                                           [a-f0-9]{4}-
-                                           [a-f0-9]{4}-
-                                           [a-f0-9]{12}
-                                        )
-                                    '''
-                live_ids = []
-                try:
-                    for match in re.finditer(video_id_regex, webpage):
-                        live_ids.append(match.group('video_id'))
-                except StopIteration:
-                    pass
-                return live_ids
-
-            live_ids = get_live_ids()
-            for lid in live_ids:
-                api_url = ('https://event.api.swisstxt.ch/v1/events/'
-                           '%s/byEventItemId/?eids=%s') % (self.bu, lid)
-                live_json = json.loads(self.open_url(api_url))
-                entry = utils.try_get(live_json, 0, data_type=dict, default={})
-                if not entry:
-                    self.log('build_live_menu: No entry found '
-                             'for live id %s.' % lid)
-                    continue
-                if utils.try_get(entry, 'streamType') == 'noStream':
-                    continue
-                title = utils.try_get(entry, 'title')
-                stream_url = utils.try_get(entry, 'hls')
-                image = utils.try_get(entry, 'imageUrl')
-                item = xbmcgui.ListItem(label=title)
-                item.setProperty('IsPlayable', 'true')
-                item.setArt({'thumb': image})
-                purl = self.build_url(mode=51, name=stream_url)
-                xbmcplugin.addDirectoryItem(
-                    self.handle, purl, item, isFolder=False)
-
-            if extract_srf3:
-                srf3_ids = get_srf3_live_ids()
-                for vid in srf3_ids:
-                    self.build_episode_menu(vid, include_segments=False)
+        def get_srf3_live_ids():
+            """
+            Returns a list of Radio SRF 3 video streams.
+            """
+            url = 'https://www.srf.ch/radio-srf-3'
+            webpage = self.open_url(url, use_cache=False)
+            video_id_regex = r'''(?x)
+                                   popupvideoplayer\?id=
+                                   (?P<video_id>
+                                       [a-f0-9]{8}-
+                                       [a-f0-9]{4}-
+                                       [a-f0-9]{4}-
+                                       [a-f0-9]{4}-
+                                       [a-f0-9]{12}
+                                    )
+                                '''
+            live_ids = []
+            try:
+                for match in re.finditer(video_id_regex, webpage):
+                    live_ids.append(match.group('video_id'))
+            except StopIteration:
+                pass
+            return live_ids
+        live_ids = get_live_ids()
+        for lid in live_ids:
+            api_url = ('https://event.api.swisstxt.ch/v1/events/'
+                       '%s/byEventItemId/?eids=%s') % (self.bu, lid)
+            live_json = json.loads(self.open_url(api_url))
+            entry = utils.try_get(live_json, 0, data_type=dict, default={})
+            if not entry:
+                self.log('build_live_menu: No entry found '
+                         'for live id %s.' % lid)
+                continue
+            if utils.try_get(entry, 'streamType') == 'noStream':
+                continue
+            title = utils.try_get(entry, 'title')
+            stream_url = utils.try_get(entry, 'hls')
+            image = utils.try_get(entry, 'imageUrl')
+            item = xbmcgui.ListItem(label=title)
+            item.setProperty('IsPlayable', 'true')
+            item.setArt({'thumb': image})
+            purl = self.build_url(mode=51, name=stream_url)
+            xbmcplugin.addDirectoryItem(
+                self.handle, purl, item, isFolder=False)
+        if extract_srf3:
+            srf3_ids = get_srf3_live_ids()
+            for vid in srf3_ids:
+                self.build_episode_menu(vid, include_segments=False)
 
     def read_youtube_channels(self, fname):
         data_file = os.path.join(xbmc.translatePath(self.data_uri), fname)
