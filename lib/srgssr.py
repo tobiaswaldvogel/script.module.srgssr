@@ -440,7 +440,8 @@ class SRGSSR(object):
                 is_folder=is_folder)
 
         if len(sorted_list_of_episodes_dict) > page * self.number_of_episodes:
-            next_item = xbmcgui.ListItem(label=LANGUAGE(30073))  # Next page
+            next_item = xbmcgui.ListItem(
+                label='>> ' + LANGUAGE(30073))  # Next page
             next_item.setProperty('IsPlayable', 'false')
             purl = self.build_url(mode=12, page=page+1)
             xbmcplugin.addDirectoryItem(
@@ -507,7 +508,8 @@ class SRGSSR(object):
         if next_page_hash and page_hash != next_page_hash:
             self.log('page_hash: %s' % page_hash)
             self.log('next_hash: %s' % next_page_hash)
-            next_item = xbmcgui.ListItem(label=LANGUAGE(30073))  # Next page
+            next_item = xbmcgui.ListItem(
+                label='>> ' + LANGUAGE(30073))  # Next page
             next_item.setProperty('IsPlayable', 'false')
             url = self.build_url(
                 mode=20, name=show_id, page_hash=next_page_hash)
@@ -626,7 +628,8 @@ class SRGSSR(object):
 
         try:
             vid = id_list[page*self.number_of_episodes]
-            next_item = xbmcgui.ListItem(label=LANGUAGE(30073))  # Next page
+            next_item = xbmcgui.ListItem(
+                label='>> ' + LANGUAGE(30073))  # Next page
             next_item.setProperty('IsPlayable', 'false')
             name = topic_id if topic_id else ''
             purl = self.build_url(mode=mode, name=name, page=page+1)
@@ -1204,7 +1207,8 @@ class SRGSSR(object):
             xbmcplugin.addDirectoryItem(
                 self.handle, purl, list_item, isFolder=True)
 
-    def build_youtube_channel_menu(self, channel_ids, cid, mode, page=1, page_token=''):
+    def build_youtube_channel_menu(self, channel_ids, cid,
+                                   mode, page=1, page_token=''):
         try:
             page = int(page)
         except TypeError:
@@ -1214,7 +1218,7 @@ class SRGSSR(object):
             self.handle, channel_ids).build_channel_menu(
                 cid, page_token=page_token)
         if next_page_token:
-            next_item = xbmcgui.ListItem(label=LANGUAGE(30073))
+            next_item = xbmcgui.ListItem(label='>> ' + LANGUAGE(30073))
             next_url = self.build_url(
                 mode=mode, name=cid, page_hash=next_page_token)
             next_item.setProperty('IsPlayable', 'false')
@@ -1231,7 +1235,7 @@ class SRGSSR(object):
             self.handle, channel_ids).build_newest_videos(
                 page=page)
         if next_page:
-            next_item = xbmcgui.ListItem(label=LANGUAGE(30073))
+            next_item = xbmcgui.ListItem(label='>> ' + LANGUAGE(30073))
             next_url = self.build_url(mode=mode, page=next_page)
             next_item.setProperty('IsPlayable', 'false')
             xbmcplugin.addDirectoryItem(
