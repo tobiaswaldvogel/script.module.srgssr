@@ -38,6 +38,7 @@ import xbmcaddon
 
 from simplecache import SimpleCache
 import utils
+import youtube_channels
 
 ADDON_ID = 'script.module.srgssr'
 REAL_SETTINGS = xbmcaddon.Addon(id=ADDON_ID)
@@ -1202,3 +1203,36 @@ class SRGSSR(object):
             purl = self.build_url(mode=item['mode'])
             xbmcplugin.addDirectoryItem(
                 self.handle, purl, list_item, isFolder=True)
+
+    def build_youtube_channel_menu(self, channel_ids, cid, mode, page=1, page_token=''):
+        try:
+            page = int(page)
+        except TypeError:
+            page = 1
+
+        next_page_token = youtube_channels.YoutubeChannels(
+            self.handle, channel_ids).build_channel_menu(
+                cid, page_token=page_token)
+        if next_page_token:
+            next_item = xbmcgui.ListItem(label=LANGUAGE(30073))
+            next_url = self.build_url(
+                mode=mode, name=cid, page_hash=next_page_token)
+            next_item.setProperty('IsPlayable', 'false')
+            xbmcplugin.addDirectoryItem(
+                self.handle, next_url, next_item, isFolder=True)
+
+    def build_youtube_newest_videos_menu(self, channel_ids, mode, page=1):
+        try:
+            page = int(page)
+        except TypeError:
+            page = 1
+
+        next_page = youtube_channels.YoutubeChannels(
+            self.handle, channel_ids).build_newest_videos(
+                page=page)
+        if next_page:
+            next_item = xbmcgui.ListItem(label=LANGUAGE(30073))
+            next_url = self.build_url(mode=mode, page=next_page)
+            next_item.setProperty('IsPlayable', 'false')
+            xbmcplugin.addDirectoryItem(
+                self.handle, next_url, next_item, isFolder=True)
