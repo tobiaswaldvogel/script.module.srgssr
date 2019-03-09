@@ -85,6 +85,8 @@ class SRGSSR(object):
             self.host_url = 'https://play.swissinfo.ch'
         self.data_uri = ('special://home/addons/%s/resources/'
                          'data') % self.addon_id
+        self.media_uri = ('special://home/addons/%s/resources/'
+                          'media') % self.addon_id
 
         # Plugin options:
         self.debug = self.get_boolean_setting(
@@ -98,6 +100,13 @@ class SRGSSR(object):
         self.prefer_hd = self.get_boolean_setting(
             'Prefer_HD')
         self.number_of_episodes = 10
+
+    def get_youtube_icon(self):
+        path = os.path.join(
+            xbmc.translatePath(self.media_uri), 'icon_youtube.png')
+        if os.path.exists(path):
+            return path
+        return self.icon
 
     def get_boolean_setting(self, setting):
         """
@@ -202,93 +211,107 @@ class SRGSSR(object):
                 'identifier': 'All_Shows',
                 'name': self.plugin_language(30050),
                 'mode': 10,
-                'displayItem': self.get_boolean_setting('All_Shows')
+                'displayItem': self.get_boolean_setting('All_Shows'),
+                'icon': self.icon,
             }, {
                 # Favourite shows
                 'identifier': 'Favourite_Shows',
                 'name': self.plugin_language(30051),
                 'mode': 11,
-                'displayItem': self.get_boolean_setting('Favourite_Shows')
+                'displayItem': self.get_boolean_setting('Favourite_Shows'),
+                'icon': self.icon,
             }, {
                 # Newest favourite shows
                 'identifier': 'Newest_Favourite_Shows',
                 'name': self.plugin_language(30052),
                 'mode': 12,
                 'displayItem': self.get_boolean_setting(
-                    'Newest_Favourite_Shows')
+                    'Newest_Favourite_Shows'),
+                'icon': self.icon,
             }, {
                 # Recommendations
                 'identifier': 'Recommendations',
                 'name': self.plugin_language(30053),
                 'mode': 16,
-                'displayItem': self.get_boolean_setting('Recommendations')
+                'displayItem': self.get_boolean_setting('Recommendations'),
+                'icon': self.icon,
             }, {
                 # Newest shows
                 'identifier': 'Newest_Shows',
                 'name': self.plugin_language(30054),
                 'mode': 13,
-                'displayItem': self.get_boolean_setting('Newest_Shows')
+                'displayItem': self.get_boolean_setting('Newest_Shows'),
+                'icon': self.icon,
             }, {
                 # Most clicked shows
                 'identifier': 'Most_Clicked_Shows',
                 'name': self.plugin_language(30055),
                 'mode': 14,
-                'displayItem': self.get_boolean_setting('Most_Clicked_Shows')
+                'displayItem': self.get_boolean_setting('Most_Clicked_Shows'),
+                'icon': self.icon,
             }, {
                 # Soon offline
                 'identifier': 'Soon_Offline',
                 'name': self.plugin_language(30056),
                 'mode': 15,
-                'displayItem': self.get_boolean_setting('Soon_Offline')
+                'displayItem': self.get_boolean_setting('Soon_Offline'),
+                'icon': self.icon,
             }, {
                 # Shows by date
                 'identifier': 'Shows_By_Date',
                 'name': self.plugin_language(30057),
                 'mode': 17,
-                'displayItem': self.get_boolean_setting('Shows_By_Date')
+                'displayItem': self.get_boolean_setting('Shows_By_Date'),
+                'icon': self.icon,
             }, {
                 # Live TV
                 'identifier': 'Live_TV',
                 'name': self.plugin_language(30072),
                 'mode': 26,
-                'displayItem': self.get_boolean_setting('Live_TV')
+                'displayItem': self.get_boolean_setting('Live_TV'),
+                'icon': self.icon,
             }, {
                 # SRF.ch live
                 'identifier': 'SRF_Live',
                 'name': self.plugin_language(30070),
                 'mode': 18,
-                'displayItem': self.get_boolean_setting('SRF_Live')
+                'displayItem': self.get_boolean_setting('SRF_Live'),
+                'icon': self.icon,
             }, {
                 # SRF on YouTube
                 'identifier': 'SRF_YouTube',
                 'name': self.plugin_language(30074),
                 'mode': 30,
-                'displayItem': self.get_boolean_setting('SRF_YouTube')
+                'displayItem': self.get_boolean_setting('SRF_YouTube'),
+                'icon': self.get_youtube_icon(),
             }, {
                 # RTS on YouTube
                 'identifier': 'RTS_YouTube',
                 'name': self.plugin_language(30074),
                 'mode': 30,
-                'displayItem': self.get_boolean_setting('RTS_YouTube')
+                'displayItem': self.get_boolean_setting('RTS_YouTube'),
+                'icon': self.get_youtube_icon(),
             }, {
                 # RSI on YouTube
                 'identifier': 'RSI_YouTube',
                 'name': self.plugin_language(30074),
                 'mode': 30,
-                'displayItem': self.get_boolean_setting('RSI_YouTube')
+                'displayItem': self.get_boolean_setting('RSI_YouTube'),
+                'icon': self.get_youtube_icon(),
             }, {
                 # RTR on YouTube
                 'identifier': 'RTR_YouTube',
                 'name': self.plugin_language(30074),
                 'mode': 30,
-                'displayItem': self.get_boolean_setting('RTR_YouTube')
+                'displayItem': self.get_boolean_setting('RTR_YouTube'),
+                'icon': self.get_youtube_icon(),
             }
         ]
         for item in main_menu_list:
             if item['displayItem'] and item['identifier'] in identifiers:
                 list_item = xbmcgui.ListItem(item['name'])
                 list_item.setProperty('IsPlayable', 'false')
-                list_item.setArt({'thumb': self.icon})
+                list_item.setArt({'thumb': item['icon']})
                 purl = self.build_url(
                     mode=item['mode'], name=item['identifier'])
                 xbmcplugin.addDirectoryItem(
@@ -1226,7 +1249,7 @@ class SRGSSR(object):
             list_item = xbmcgui.ListItem(label=item['name'])
             list_item.setProperty('IsPlayable', 'false')
             list_item.setArt({
-                'icon': self.icon,
+                'icon': self.get_youtube_icon(),
             })
             purl = self.build_url(mode=item['mode'])
             xbmcplugin.addDirectoryItem(
