@@ -1238,10 +1238,10 @@ class SRGSSR(object):
         Builds the main YouTube menu.
         """
         items = [{
-            'name': 'Channels',  # TODO: LANGUAGE
+            'name': LANGUAGE(30110),
             'mode': 31,
         }, {
-            'name': 'Newest Videos',  # TODO: LANGUAGE
+            'name': LANGUAGE(30111),
             'mode': 32,
         }]
 
