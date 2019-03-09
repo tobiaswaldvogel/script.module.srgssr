@@ -51,6 +51,7 @@ TIMEOUT = 30
 IDREGEX = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+'
 
 FAVOURITE_SHOWS_FILENAME = 'favourite_shows.json'
+YOUTUBE_CHANNELS_FILENAME = 'youtube_channels.json'
 
 socket.setdefaulttimeout(TIMEOUT)
 
@@ -1180,7 +1181,7 @@ class SRGSSR(object):
             for vid in srf3_ids:
                 self.build_episode_menu(vid, include_segments=False)
 
-    def read_youtube_channels(self, fname):
+    def _read_youtube_channels(self, fname):
         """
         Reads YouTube channel IDs from a specified file and returns a list
         of these channel IDs.
@@ -1194,6 +1195,20 @@ class SRGSSR(object):
             cids = [elem['channel'] for elem in ch_content.get('channels', [])]
             return cids
         return []
+
+    def get_youtube_channel_ids(self):
+        """
+        Uses the cache to generate a list of the stored YouTube channel IDs.
+        """
+        cache_identifier = self.addon_id + '.youtube_channel_ids'
+        channel_ids = self.cache.get(cache_identifier)
+        if not channel_ids:
+            self.log('get_youtube_channel_ids: Caching YouTube channel ids.'
+                     'This log message should not appear too many times.')
+            channel_ids = self._read_youtube_channels(
+                YOUTUBE_CHANNELS_FILENAME)
+            self.cache.set(cache_identifier, channel_ids)
+        return channel_ids
 
     def build_youtube_main_menu(self):
         """
@@ -1217,7 +1232,7 @@ class SRGSSR(object):
             xbmcplugin.addDirectoryItem(
                 self.handle, purl, list_item, isFolder=True)
 
-    def build_youtube_channel_overview_menu(self, channel_ids, mode):
+    def build_youtube_channel_overview_menu(self, mode):
         """
         Builds a menu of folders containing the plugin's
         YouTube channels.
@@ -1226,14 +1241,14 @@ class SRGSSR(object):
         channel_ids  -- a list of YouTube channel IDs
         mode         -- the plugin's URL mode
         """
+        channel_ids = self.get_youtube_channel_ids()
         plugin_url = self.build_url(mode=mode, name='%s')
         youtube_channels.YoutubeChannels(
             self.handle, channel_ids,
             self.addon_id, self.debug).build_channel_overview_menu(
                 plugin_channel_url=plugin_url)
 
-    def build_youtube_channel_menu(self, channel_ids, cid,
-                                   mode, page=1, page_token=''):
+    def build_youtube_channel_menu(self, cid, mode, page=1, page_token=''):
         """
         Builds a YouTube channel menu (containing a list of the
         most recent uploaded videos).
@@ -1254,6 +1269,7 @@ class SRGSSR(object):
         except TypeError:
             page = 1
 
+        channel_ids = self.get_youtube_channel_ids()
         next_page_token = youtube_channels.YoutubeChannels(
             self.handle, channel_ids,
             self.addon_id, self.debug).build_channel_menu(
@@ -1266,7 +1282,7 @@ class SRGSSR(object):
             xbmcplugin.addDirectoryItem(
                 self.handle, next_url, next_item, isFolder=True)
 
-    def build_youtube_newest_videos_menu(self, channel_ids, mode, page=1):
+    def build_youtube_newest_videos_menu(self, mode, page=1):
         """
         Builds a YouTube menu containing the most recent uploaded
         videos of all the defined channels.
@@ -1281,6 +1297,7 @@ class SRGSSR(object):
         except TypeError:
             page = 1
 
+        channel_ids = self.get_youtube_channel_ids()
         next_page = youtube_channels.YoutubeChannels(
             self.handle, channel_ids,
             self.addon_id, self.debug).build_newest_videos(page=page)
