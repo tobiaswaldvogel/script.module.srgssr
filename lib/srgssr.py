@@ -1181,6 +1181,13 @@ class SRGSSR(object):
                 self.build_episode_menu(vid, include_segments=False)
 
     def read_youtube_channels(self, fname):
+        """
+        Reads YouTube channel IDs from a specified file and returns a list
+        of these channel IDs.
+
+        Keyword arguments:
+        fname  -- the path to the file to be read
+        """
         data_file = os.path.join(xbmc.translatePath(self.data_uri), fname)
         with open(data_file, 'r') as f:
             ch_content = json.load(f)
@@ -1189,6 +1196,9 @@ class SRGSSR(object):
         return []
 
     def build_youtube_main_menu(self):
+        """
+        Builds the main YouTube menu.
+        """
         items = [{
             'name': 'Channels',  # TODO: LANGUAGE
             'mode': 31,
@@ -1209,6 +1219,21 @@ class SRGSSR(object):
 
     def build_youtube_channel_menu(self, channel_ids, cid,
                                    mode, page=1, page_token=''):
+        """
+        Builds a YouTube channel menu (containing a list of the
+        most recent uploaded videos).
+
+        Keyword arguments:
+        channel_ids  -- a list of channel IDs
+        cid          -- the channel ID of the channel to display
+        mode         -- the number which specifies to trigger this
+                        action in the plugin's URL
+        page         -- the page number to display (first page
+                        starts at 1)
+        page_token   -- the page token specifies the token that
+                        should be used on the the YouTube API
+                        request
+        """
         try:
             page = int(page)
         except TypeError:
@@ -1227,6 +1252,15 @@ class SRGSSR(object):
                 self.handle, next_url, next_item, isFolder=True)
 
     def build_youtube_newest_videos_menu(self, channel_ids, mode, page=1):
+        """
+        Builds a YouTube menu containing the most recent uploaded
+        videos of all the defined channels.
+
+        Keyword arguments:
+        channel_ids  -- a list of channel IDs
+        mode         -- the mode to be used in the plugin's URL
+        page         -- the page number (first page starts at 1)
+        """
         try:
             page = int(page)
         except TypeError:
