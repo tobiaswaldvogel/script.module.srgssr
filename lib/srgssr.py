@@ -1215,7 +1215,8 @@ class SRGSSR(object):
             page = 1
 
         next_page_token = youtube_channels.YoutubeChannels(
-            self.handle, channel_ids, self.addon_id).build_channel_menu(
+            self.handle, channel_ids,
+            self.addon_id, self.debug).build_channel_menu(
                 cid, page_token=page_token)
         if next_page_token:
             next_item = xbmcgui.ListItem(label='>> ' + LANGUAGE(30073))
@@ -1232,8 +1233,8 @@ class SRGSSR(object):
             page = 1
 
         next_page = youtube_channels.YoutubeChannels(
-            self.handle, channel_ids, self.addon_id).build_newest_videos(
-                page=page)
+            self.handle, channel_ids,
+            self.addon_id, self.debug).build_newest_videos(page=page)
         if next_page:
             next_item = xbmcgui.ListItem(label='>> ' + LANGUAGE(30073))
             next_url = self.build_url(mode=mode, page=next_page)
