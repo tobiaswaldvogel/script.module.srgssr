@@ -36,12 +36,7 @@ except ImportError:  # Python 2
     from urlparse import parse_qsl, ParseResult
     from urlparse import urlparse as urlps
 
-# import xbmc
-# import xbmcgui
-# import xbmcplugin
-# import xbmcaddon
 from kodi_six import xbmc, xbmcgui, xbmcplugin, xbmcaddon
-
 from simplecache import SimpleCache
 import utils
 import youtube_channels
@@ -129,13 +124,10 @@ class SRGSSR(object):
         msg   -- the message to log
         level -- the logging level
         """
-        # if isinstance(msg, str):
-        #     msg = msg.decode('utf-8')
         if self.debug:
             if level == xbmc.LOGERROR:
                 msg += ' ,' + traceback.format_exc()
         message = ADDON_ID + '-' + ADDON_VERSION + '-' + msg
-        # xbmc.log(msg=message.encode('utf-8'), level=level)
         xbmc.log(msg=message, level=level)
 
     @staticmethod
@@ -1005,7 +997,6 @@ class SRGSSR(object):
                     break
 
             if start_time and end_time:
-                # parsed_url = urlparse.urlparse(auth_url)
                 parsed_url = urlps(auth_url)
                 query_list = parse_qsl(parsed_url.query)
                 updated_query_list = []
@@ -1076,7 +1067,6 @@ class SRGSSR(object):
         An empty list will be returned in case of failure.
         """
         path = xbmc.translatePath(
-            # self.real_settings.getAddonInfo('profile')).decode("utf-8")
             self.real_settings.getAddonInfo('profile'))
         file_path = os.path.join(path, FAVOURITE_SHOWS_FILENAME)
         try:
@@ -1101,7 +1091,6 @@ class SRGSSR(object):
         """
         show_ids_dict_list = [{'id': show_id} for show_id in show_ids]
         path = xbmc.translatePath(
-            # self.real_settings.getAddonInfo('profile')).decode("utf-8")
             self.real_settings.getAddonInfo('profile'))
         file_path = os.path.join(path, FAVOURITE_SHOWS_FILENAME)
         if not os.path.exists(path):
