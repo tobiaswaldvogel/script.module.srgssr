@@ -1137,11 +1137,11 @@ class SRGSSR(object):
             possible livestreams. If some live events were found, a list
             of live ids will be returned, otherwise an empty list.
             """
-            webpage = self.open_url(self.host_url, use_cache=False)
-            id_regex = r'data-sport-id=\"(?P<live_id>\d+)\"'
             live_ids = []
+            webpage = self.open_url(self.host_url, use_cache=False)
+            event_id_regex = r'(?:data-sport-id=\"|eventId=)(?P<live_id>\d+)'
             try:
-                for match in re.finditer(id_regex, webpage):
+                for match in re.finditer(event_id_regex, webpage):
                     live_ids.append(match.group('live_id'))
             except StopIteration:
                 pass
