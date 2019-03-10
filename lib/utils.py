@@ -271,7 +271,7 @@ def _parse_weekday_time(input_string):
         # This depends on correct date settings in Kodi...
         today = datetime.date.today()
         # wdl = [x for x in weekdays if input_string.startswith(x)]
-        for key in identifiers.keys():
+        for key in list(identifiers.keys()):
             wdl = [x for x in identifiers[key] if re.match(
                 x, input_string, re.IGNORECASE)]
             lang = key
