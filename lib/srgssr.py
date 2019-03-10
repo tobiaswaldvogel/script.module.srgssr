@@ -26,15 +26,21 @@ import traceback
 
 import datetime
 import json
-import socket
-import urllib2
-import urllib
-import urlparse
+import requests
 
-import xbmc
-import xbmcgui
-import xbmcplugin
-import xbmcaddon
+try:  # Python 3
+    from urllib.parse import quote_plus, parse_qsl, ParseResult
+    from urllib.parse import urlparse as urlps
+except ImportError:  # Python 2
+    from urllib import quote_plus
+    from urlparse import parse_qsl, ParseResult
+    from urlparse import urlparse as urlps
+
+# import xbmc
+# import xbmcgui
+# import xbmcplugin
+# import xbmcaddon
+from kodi_six import xbmc, xbmcgui, xbmcplugin, xbmcaddon
 
 from simplecache import SimpleCache
 import utils
@@ -53,15 +59,13 @@ IDREGEX = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+'
 FAVOURITE_SHOWS_FILENAME = 'favourite_shows.json'
 YOUTUBE_CHANNELS_FILENAME = 'youtube_channels.json'
 
-socket.setdefaulttimeout(TIMEOUT)
-
 
 def get_params():
     """
     Parses the Kodi plugin URL and returns its parameters
     in a dictionary.
     """
-    return dict(urlparse.parse_qsl(sys.argv[2][1:]))
+    return dict(parse_qsl(sys.argv[2][1:]))
 
 
 class SRGSSR(object):
@@ -125,13 +129,14 @@ class SRGSSR(object):
         msg   -- the message to log
         level -- the logging level
         """
-        if isinstance(msg, str):
-            msg = msg.decode('utf-8')
+        # if isinstance(msg, str):
+        #     msg = msg.decode('utf-8')
         if self.debug:
             if level == xbmc.LOGERROR:
                 msg += ' ,' + traceback.format_exc()
         message = ADDON_ID + '-' + ADDON_VERSION + '-' + msg
-        xbmc.log(msg=message.encode('utf-8'), level=level)
+        # xbmc.log(msg=message.encode('utf-8'), level=level)
+        xbmc.log(msg=message, level=level)
 
     @staticmethod
     def build_url(mode=None, name=None, url=None, page_hash=None, page=None):
@@ -156,7 +161,7 @@ class SRGSSR(object):
         for query, qname in zip(queries, query_names):
             if query:
                 add = '?' if not added else '&'
-                purl += '%s%s=%s' % (add, qname, urllib.quote_plus(query))
+                purl += '%s%s=%s' % (add, qname, quote_plus(query))
                 added = True
         return purl
 
@@ -169,32 +174,26 @@ class SRGSSR(object):
                      Kodi module SimpleCache should be used (default: True)
         """
         self.log('open_url, url = ' + str(url))
-        try:
-            cache_response = None
-            if use_cache:
-                cache_response = self.cache.get(
-                    ADDON_NAME + '.openURL, url = %s' % url)
-            if not cache_response:
-                request = urllib2.Request(url)
-                request.add_header(
-                    'User-Agent',
-                    ('Mozilla/5.0 (X11; Linux x86_64; rv:59.0)'
-                     'Gecko/20100101 Firefox/59.0'))
-                response = urllib2.urlopen(request, timeout=TIMEOUT).read()
-                self.cache.set(
-                    ADDON_NAME + '.openURL, url = %s' % url,
-                    response,
-                    expiration=datetime.timedelta(hours=2))
-            return self.cache.get(ADDON_NAME + '.openURL, url = %s' % url)
-        except urllib2.URLError as err:
-            self.log("openURL Failed! " + str(err), xbmc.LOGERROR)
-        except socket.timeout as err:
-            self.log("openURL Failed! " + str(err), xbmc.LOGERROR)
-        except Exception as err:
-            self.log("openURL Failed! " + str(err), xbmc.LOGERROR)
-            xbmcgui.Dialog().notification(
-                ADDON_NAME, LANGUAGE(30100), ICON, 4000)
-            return ''
+        cache_response = None
+        if use_cache:
+            cache_response = self.cache.get(
+                ADDON_NAME + '.open_url, url = %s' % url)
+        if not cache_response:
+            headers = {
+                'User-Agent': ('Mozilla/5.0 (X11; Linux x86_64; rv:59.0)'
+                               'Gecko/20100101 Firefox/59.0'),
+            }
+            response = requests.get(url, headers=headers)
+            if not response.ok:
+                self.log('open_url: Failed to open url %s' % url)
+                xbmcgui.Dialog().notification(
+                    ADDON_NAME, LANGUAGE(30100), ICON, 4000)
+                return ''
+            self.cache.set(
+                ADDON_NAME + '.open_url, url = %s' % url,
+                response.text,
+                expiration=datetime.timedelta(hours=2))
+        return self.cache.get(ADDON_NAME + '.open_url, url = %s' % url)
 
     def build_main_menu(self, identifiers=[]):
         """
@@ -924,7 +923,8 @@ class SRGSSR(object):
         url -- a given stream URL
         """
         self.log('get_auth_url, url = %s' % url)
-        spl = urlparse.urlparse(url).path.split('/')
+        # spl = urlparse.urlparse(url).path.split('/')
+        spl = urlps(url).path.split('/')
         token = json.loads(
             self.open_url(
                 'http://tp.srgssr.ch/akahd/token?acl=/%s/%s/*' %
@@ -1005,8 +1005,9 @@ class SRGSSR(object):
                     break
 
             if start_time and end_time:
-                parsed_url = urlparse.urlparse(auth_url)
-                query_list = urlparse.parse_qsl(parsed_url.query)
+                # parsed_url = urlparse.urlparse(auth_url)
+                parsed_url = urlps(auth_url)
+                query_list = parse_qsl(parsed_url.query)
                 updated_query_list = []
                 for query in query_list:
                     if query[0] == 'start' or query[0] == 'end':
@@ -1017,7 +1018,7 @@ class SRGSSR(object):
                 updated_query_list.append(
                     ('end', utils.CompatStr(end_time)))
                 new_query = utils.assemble_query_string(updated_query_list)
-                surl_result = urlparse.ParseResult(
+                surl_result = ParseResult(
                     parsed_url.scheme, parsed_url.netloc,
                     parsed_url.path, parsed_url.params,
                     new_query, parsed_url.fragment)
@@ -1075,7 +1076,8 @@ class SRGSSR(object):
         An empty list will be returned in case of failure.
         """
         path = xbmc.translatePath(
-            self.real_settings.getAddonInfo('profile')).decode("utf-8")
+            # self.real_settings.getAddonInfo('profile')).decode("utf-8")
+            self.real_settings.getAddonInfo('profile'))
         file_path = os.path.join(path, FAVOURITE_SHOWS_FILENAME)
         try:
             with open(file_path, 'r') as f:
@@ -1099,7 +1101,8 @@ class SRGSSR(object):
         """
         show_ids_dict_list = [{'id': show_id} for show_id in show_ids]
         path = xbmc.translatePath(
-            self.real_settings.getAddonInfo('profile')).decode("utf-8")
+            # self.real_settings.getAddonInfo('profile')).decode("utf-8")
+            self.real_settings.getAddonInfo('profile'))
         file_path = os.path.join(path, FAVOURITE_SHOWS_FILENAME)
         if not os.path.exists(path):
             os.makedirs(path)
