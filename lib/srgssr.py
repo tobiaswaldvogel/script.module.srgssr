@@ -37,9 +37,16 @@ except ImportError:  # Python 2
     from urlparse import urlparse as urlps
 
 from kodi_six import xbmc, xbmcgui, xbmcplugin, xbmcaddon
-from simplecache import SimpleCache
 import utils
 import youtube_channels
+
+# NOTE: As soon as script.module.simplecache is Python 3 compatible,
+# we can remove the following condition and just import SimpleCache.
+# See https://github.com/kodi-community-addons/script.module.simplecache/pull/7
+if sys.version_info[0] >= 3:
+    from dummycache import SimpleCache
+else:
+    from simplecache import SimpleCache
 
 ADDON_ID = 'script.module.srgssr'
 REAL_SETTINGS = xbmcaddon.Addon(id=ADDON_ID)
@@ -185,6 +192,7 @@ class SRGSSR(object):
                 ADDON_NAME + '.open_url, url = %s' % url,
                 response.text,
                 expiration=datetime.timedelta(hours=2))
+            return response.text
         return self.cache.get(ADDON_NAME + '.open_url, url = %s' % url)
 
     def build_main_menu(self, identifiers=[]):
