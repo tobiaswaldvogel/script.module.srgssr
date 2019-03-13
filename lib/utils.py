@@ -21,6 +21,7 @@
 
 import datetime
 import re
+import sys
 
 try:
     CompatStr = unicode  # Python2
@@ -63,7 +64,10 @@ def assemble_query_string(query_list):
     Keyword arguments:
     query_list -- a list of queries
     """
-    return '&'.join(['{}={}'.format(k, v) for (k, v) in query_list])
+    if sys.version_info[0] >= 3:
+        return '&'.join(['{}={}'.format(k, v) for (k, v) in query_list])
+    return '&'.join(
+        ['{}={}'.decode('utf-8').format(k, v) for (k, v) in query_list])
 
 
 def str_or_none(inp, default=None):
