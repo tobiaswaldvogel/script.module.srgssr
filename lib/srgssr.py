@@ -304,13 +304,6 @@ class SRGSSR(object):
                 'mode': 30,
                 'displayItem': self.get_boolean_setting('RTR_YouTube'),
                 'icon': self.get_youtube_icon(),
-            }, {
-                # SWI on YouTube
-                'identifier': 'SWI_YouTube',
-                'name': self.plugin_language(30074),
-                'mode': 30,
-                'displayItem': self.get_boolean_setting('SWI_YouTube'),
-                'icon': self.get_youtube_icon(),
             }
         ]
         for item in main_menu_list:
