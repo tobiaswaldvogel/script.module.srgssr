@@ -304,6 +304,34 @@ class SRGSSR(object):
                 'mode': 30,
                 'displayItem': self.get_boolean_setting('RTR_YouTube'),
                 'icon': self.get_youtube_icon(),
+            }, {
+                # Shows
+                'identifier': 'Shows',
+                'name': 'Shows',
+                'mode': 42,
+                'displayItem': True,
+                'icon': self.icon,
+            }, {
+                # Radio channels
+                'identifier': 'Radio_Channels',
+                'name': 'Channels',
+                'mode': 40,
+                'displayItem': True,
+                'icon': self.icon,
+            }, {
+                # Newest audios
+                'identifier': 'Newest_Audios',
+                'name': 'Newest audios',
+                'mode': 45,
+                'displayItem': True,
+                'icon': self.icon,
+            }, {
+                # Most listened
+                'identifier': 'Most_Listened',
+                'name': 'Most listened',
+                'mode': 46,
+                'displayItem': True,
+                'icon': self.icon,
             }
         ]
         for item in main_menu_list:
@@ -470,7 +498,7 @@ class SRGSSR(object):
             xbmcplugin.addDirectoryItem(
                 self.handle, purl, next_item, isFolder=True)
 
-    def build_show_menu(self, show_id, page_hash=None):
+    def build_show_menu(self, show_id, page_hash=None, audio=False):
         """
         Builds a list of videos (can be folders in case of segmented videos)
         for a show given by its show id.
@@ -479,23 +507,25 @@ class SRGSSR(object):
         show_id   -- the id of the show
         page_hash -- the page hash to get the list of
                      another page (default: None)
+        audio     -- boolean value to indicate if the show is a
+                     radio show (default: False)
         """
-        self.log('build_show_menu, show_id = %s, page_hash=%s' % (show_id,
-                                                                  page_hash))
+        self.log(('build_show_menu, show_id = %s, page_hash=%s, '
+                  'audio=%s') % (show_id, page_hash, audio))
         # TODO: This depends on the local time settings
         current_month_date = datetime.date.today().strftime('%m-%Y')
+        section = 'radio' if audio else 'tv'
         if not page_hash:
-            json_url = ('%s/play/tv/show/%s/latestEpisodes?numberOfEpisodes=%d'
-                        '&tillMonth=%s') % (self.host_url, show_id,
+            json_url = ('%s/play/%s/show/%s/latestEpisodes?numberOfEpisodes=%d'
+                        '&tillMonth=%s') % (self.host_url, section, show_id,
                                             self.number_of_episodes,
                                             current_month_date)
         else:
-            json_url = ('%s/play/tv/show/%s/latestEpisodes?nextPageHash=%s'
-                        '&tillMonth=%s') % (self.host_url, show_id, page_hash,
-                                            current_month_date)
-        self.log('build_show_menu. Open URL %s' % json_url)
-        json_response = json.loads(self.open_url(json_url))
+            json_url = ('%s/play/%s/show/%s/latestEpisodes?nextPageHash=%s'
+                        '&tillMonth=%s') % (self.host_url, section, show_id,
+                                            page_hash, current_month_date)
 
+        json_response = json.loads(self.open_url(json_url))
         try:
             banner_image = utils.try_get(
                 json_response, ('show', 'bannerImageUrl'))
@@ -526,7 +556,8 @@ class SRGSSR(object):
                 episode_entry, 'segments', data_type=list, default=[])
             enable_segments = True if self.segments and segments else False
             self.build_entry(
-                episode_entry, banner=banner_image, is_folder=enable_segments)
+                episode_entry, banner=banner_image, is_folder=enable_segments,
+                audio=audio)
 
         if next_page_hash and page_hash != next_page_hash:
             self.log('page_hash: %s' % page_hash)
@@ -663,7 +694,7 @@ class SRGSSR(object):
             return
 
     def build_episode_menu(self, video_id, include_segments=True,
-                           segment_option=False):
+                           segment_option=False, audio=False):
         """
         Builds a list entry for a episode by a given video id.
         The segment entries for that episode can be included too.
@@ -677,11 +708,15 @@ class SRGSSR(object):
                             (default: True)
         segment_option   -- Which segment option to use.
                             (default: False)
+        audio            -- boolean value to indicate if the episode is a
+                            radio show (default: False)
         """
         self.log('build_episode_menu, video_id = %s, include_segments = %s' %
                  (video_id, include_segments))
+        content_type = 'audio' if audio else 'video'
         json_url = ('https://il.srgssr.ch/integrationlayer/2.0/%s/'
-                    'mediaComposition/video/%s.json') % (self.bu, video_id)
+                    'mediaComposition/%s/%s.json') % (self.bu, content_type,
+                                                      video_id)
         self.log('build_episode_menu. Open URL %s' % json_url)
         try:
             json_response = json.loads(self.open_url(json_url))
@@ -752,7 +787,8 @@ class SRGSSR(object):
             # Generate a simple playable item for the video
             self.build_entry(json_segment, banner)
 
-    def build_entry(self, json_entry, banner=None, is_folder=False):
+    def build_entry(
+            self, json_entry, banner=None, is_folder=False, audio=False):
         """
         Builds an list item for a video or folder by giving the json part,
         describing this video.
@@ -761,6 +797,8 @@ class SRGSSR(object):
         json_entry -- the part of the json describing the video
         banner     -- URL of the show's banner (default: None)
         is_folder  -- indicates if the item is a folder (default: False)
+        audio      -- boolean value to indicate if the entry contains
+                      audio (default: False)
         """
         self.log('build_entry')
         title = utils.try_get(json_entry, 'title')
@@ -776,7 +814,7 @@ class SRGSSR(object):
         duration = utils.try_get(
             json_entry, 'duration', data_type=int, default=None)
         if duration:
-            duration = duration // 1000  # needs fix for Python 3
+            duration = duration // 1000
         else:
             duration = utils.get_duration(
                 utils.try_get(json_entry, 'duration'))
@@ -801,18 +839,23 @@ class SRGSSR(object):
             'poster': image,
             'banner': banner,
         })
-        subs = utils.try_get(
-            json_entry, 'subtitleList', data_type=list, default=[])
-        if subs and self.subtitles:
-            subtitle_list = [
-                utils.try_get(x, 'url') for x in subs
-                if utils.try_get(x, 'format') == 'VTT']
-            if subtitle_list:
-                list_item.setSubtitles(subtitle_list)
-            else:
-                self.log('No WEBVTT subtitles found for video id %s.' % vid)
+
+        if not audio:
+            subs = utils.try_get(
+                json_entry, 'subtitleList', data_type=list, default=[])
+            if subs and self.subtitles:
+                subtitle_list = [
+                    utils.try_get(x, 'url') for x in subs
+                    if utils.try_get(x, 'format') == 'VTT']
+                if subtitle_list:
+                    list_item.setSubtitles(subtitle_list)
+                else:
+                    self.log(
+                        'No WEBVTT subtitles found for video id %s.' % vid)
+
         if is_folder:
             list_item.setProperty('IsPlayable', 'false')
+            # TODO: check if something needs to be done for audio entries
             url = self.build_url(mode=21, name=vid)
         else:
             list_item.setProperty('IsPlayable', 'true')
@@ -938,23 +981,27 @@ class SRGSSR(object):
             url += ('?' if '?' not in url else '&') + auth_params
         return url
 
-    def play_video(self, video_id):
+    def play_video(self, video_id, audio=False):
         """
         Gets the video stream information of a video and starts to play it.
 
         Keyword arguments:
         video_id -- the video of the video to play
+        audio    -- boolean value to indicate if the content is
+                    audio (default: False)
         """
         self.log('play_video, video_id = %s' % video_id)
+        content_type = 'audio' if audio else 'video'
         json_url = ('https://il.srgssr.ch/integrationlayer/2.0/%s/'
-                    'mediaComposition/video/%s.json') % (self.bu, video_id)
+                    'mediaComposition/%s/%s.json') % (self.bu, content_type,
+                                                      video_id)
         self.log('play_video. Open URL %s' % json_url)
         json_response = json.loads(self.open_url(json_url))
 
         chapter_list = utils.try_get(
             json_response, 'chapterList', data_type=list, default=[])
         if not chapter_list:
-            self.log('play_video: no stream URL found.')
+            self.log('play_video: no stream URL found (chapterList empty).')
             return
 
         first_chapter = utils.try_get(
@@ -965,13 +1012,25 @@ class SRGSSR(object):
         resource_list = utils.try_get(
             chapter, 'resourceList', data_type=list, default=[])
         if not resource_list:
-            self.log('play_video: no stream URL found.')
+            self.log('play_video: no stream URL found. (resourceList empty)')
             return
 
         stream_urls = {
             'SD': '',
             'HD': '',
         }
+
+        if audio:
+            for resource in resource_list:
+                if utils.try_get(resource, 'protocol') in ('HTTP', 'HTTPS'):
+                    for key in ('SD', 'HD'):
+                        if utils.try_get(resource, 'quality') == key:
+                            stream_urls[key] = utils.try_get(resource, 'url')
+            stream_url = stream_urls['HD'] or stream_urls['SD']
+            play_item = xbmcgui.ListItem(video_id, path=stream_url)
+            xbmcplugin.setResolvedUrl(self.handle, True, play_item)
+            return
+
         for resource in resource_list:
             if utils.try_get(resource, 'protocol') == 'HLS':
                 for key in ('SD', 'HD'):
@@ -986,6 +1045,7 @@ class SRGSSR(object):
             stream_urls['HD'] and self.prefer_hd)\
             or not stream_urls['SD'] else stream_urls['SD']
         self.log('play_video, stream_url = %s' % stream_url)
+
         auth_url = self.get_auth_url(stream_url)
 
         start_time = end_time = None
@@ -997,11 +1057,11 @@ class SRGSSR(object):
                     start_time = utils.try_get(
                         segment, 'markIn', data_type=int, default=None)
                     if start_time:
-                        start_time = start_time // 1000  # fix it for Python 3
+                        start_time = start_time // 1000
                     end_time = utils.try_get(
                         segment, 'markOut', data_type=int, default=None)
                     if end_time:
-                        end_time = end_time // 1000  # fix it for Python 3
+                        end_time = end_time // 1000
                     break
 
             if start_time and end_time:
@@ -1203,6 +1263,219 @@ class SRGSSR(object):
             srf3_ids = get_srf3_live_ids()
             for vid in srf3_ids:
                 self.build_episode_menu(vid, include_segments=False)
+
+    def get_radio_channels(self, raw=False):
+        """
+        Gets all the radio channels which have content in the media library.
+        It returns a list of dictionaries, containing the channel id (key: id)
+        and the name of the channel (key: name).
+
+        Keyword arguments:
+        raw  -- boolean value; if set, the method returns the parsed requested
+                json instead of the simplified data (default: False)
+        """
+        url = '%s/play/radio/live/overview' % self.host_url
+        channel_json = json.loads(self.open_url(url))
+        channel_list = utils.try_get(
+            channel_json, 'overview', data_type=list, default=[])
+        if raw:
+            return channel_list
+        channels = []
+        for ch in channel_list:
+            name = utils.try_get(ch, 'name')
+            channel_id = utils.try_get(
+                ch, 'id') or utils.try_get(ch, 'channelId')
+            channels.append({
+                'name': name,
+                'id': channel_id,
+            })
+        return channels
+
+    def build_radio_channels_menu(self):
+        """
+        Builds a menu containing folders of the available radio channels which
+        have content in the media library.
+        """
+        channels = self.get_radio_channels()
+        for ch in channels:
+            list_item = xbmcgui.ListItem(label=ch['name'])
+            list_item.setProperty('IsPlayable', 'false')
+            purl = self.build_url(41, name=ch['id'])
+            xbmcplugin.addDirectoryItem(
+                self.handle, purl, list_item, isFolder=True)
+
+    def build_radio_channel_overview(self, channel_id):
+        """
+        Builds the overview menu of a given radio channel.
+
+        Keyword arguments:
+        channel_id  -- the channel id of the given radio channel
+        """
+        shows_item = xbmcgui.ListItem(label='Shows')
+        shows_item.setProperty('IsPlayable', 'false')
+        purl = self.build_url(42, name=channel_id)
+        xbmcplugin.addDirectoryItem(
+            self.handle, purl, shows_item, isFolder=True)
+
+        newest_item = xbmcgui.ListItem(label='Newest audios')
+        newest_item.setProperty('IsPlayable', 'false')
+        purl = self.build_url(43, name=channel_id)
+        xbmcplugin.addDirectoryItem(
+            self.handle, purl, newest_item, isFolder=True)
+
+        most_item = xbmcgui.ListItem(label='Most listened')
+        most_item.setProperty('IsPlayable', 'false')
+        purl = self.build_url(44, name=channel_id)
+        xbmcplugin.addDirectoryItem(
+            self.handle, purl, most_item, isFolder=True)
+
+    def build_audio_menu(self, playlist, mode, channel_id=None, page=1):
+        """
+        Builds a menu containing audio items.
+
+        Keyword arguments:
+        playlist    -- either 'Newest' for the latest available audios
+                       or 'Most clicked' for the most clicked audios
+        mode        -- the plugin url mode to use for the next page item
+        channel_id  -- the channel id of a radio channel if the request
+                       is intended to be for a specific radio channel,
+                       otherwise use None (default: None)
+        page        -- the page number to display (default: 1)
+        """
+        number_of_audios = 50
+        if playlist == 'Newest':
+            ptype = 'latest'
+        elif playlist == 'Most clicked':
+            ptype = 'mostclicked'
+        else:
+            self.log('build_audio_menu: Invalid playlist type.')
+        url = '%s/play/radio/%s/audios?numberOfAudios=%s' % (
+            self.host_url, ptype, number_of_audios)
+        if channel_id:
+            char = '?' if '?' not in url else '&'
+            url += '%schannelId=%s' % (char, channel_id)
+
+        # TODO: Code duplication: Copied from above
+        id_list = self.extract_id_list(url)
+        try:
+            page = int(page)
+        except TypeError:
+            page = 1
+
+        reduced_id_list = id_list[(page - 1) * self.number_of_episodes:
+                                  page * self.number_of_episodes]
+        for vid in reduced_id_list:
+            self.build_episode_menu(
+                vid, include_segments=False,
+                segment_option=self.segments_topics, audio=True)
+
+        try:
+            vid = id_list[page*self.number_of_episodes]
+            next_item = xbmcgui.ListItem(
+                label='>> ' + LANGUAGE(30073))  # Next page
+            next_item.setProperty('IsPlayable', 'false')
+            # name = topic_id if topic_id else ''
+            name = channel_id
+            purl = self.build_url(mode=mode, name=name, page=page+1)
+            xbmcplugin.addDirectoryItem(
+                handle=self.handle, url=purl,
+                listitem=next_item, isFolder=True)
+        except IndexError:
+            return
+
+    def extract_shows_information(self, radio_tv, channel_id=None):
+        """
+        Extracts the relevant information (like show id, title, description,
+        etc.) for the featured shows. This information is returned as a list
+        of dictionaries.
+
+        Keyword arguments:
+        radio_tv    -- either 'radio' for radio shows or 'tv' for tv shows
+        channel_id  -- a channel id, if it is desired the extract the
+                       information for a given channel, otherwise use None
+                       (default: None)
+        """
+        if radio_tv not in ('radio', 'tv'):
+            self.log('extract_show_information: Invalid value for radio_tv')
+            return
+
+        url = '%s/play/%s/shows/alphabetical-sections' % (
+            self.host_url, radio_tv)
+        if channel_id:
+            char = '?' if '?' not in url else '&'
+            url += '%schannelId=%s' % (char, channel_id)
+
+        content = self.open_url(url)
+        datareg = r'data-alphabetical-sections="(?P<data>.+?)"'
+        data_match = re.search(datareg, content, re.DOTALL)
+        data = data_match.group('data')
+        data = data.replace('&quot;', '"').replace('&amp;', '&')
+        json_data = json.loads(data, strict=False)
+
+        shows = []
+        for entry in json_data:
+            show_entries = utils.try_get(
+                entry, 'showTeaserList', data_type=list, default=[])
+            for se in show_entries:
+                aid = utils.try_get(se, 'id')
+                if not aid:
+                    continue
+                shows.append({
+                    'id': aid,
+                    'title': utils.try_get(se, 'title'),
+                    'description': utils.try_get(se, 'desription'),
+                    'lead': utils.try_get(se, 'lead'),
+                    'imageUrl': utils.try_get(se, 'imageUrl'),
+                    'bannerImageUrl': utils.try_get(se, 'bannerImageUrl'),
+                })
+        return shows
+
+    def build_shows_menu(self, radio_tv, channel_id=None):
+        """
+        Builds a menu of available shows.
+
+        Keyword arguments:
+        radio_tv    -- either 'radio' for radio shows or 'tv' for tv shows
+        channel_id  -- a channel id, if it is desired to build the show menu
+                       for a given channel, otherwise use None
+                       (default: None)
+        """
+        if radio_tv not in ('radio', 'tv'):
+            self.log('build_shows_menu: Invalid value for radio_tv')
+            return
+
+        if channel_id:
+            shows = self.extract_shows_information(radio_tv, channel_id)
+        else:
+            channels = self.get_radio_channels()
+            # TODO: In the future, this should be done by multiprocessing
+            # for the platforms that support it
+            channel_shows = [
+                self.extract_shows_information(radio_tv, channel['id'])
+                for channel in channels]
+            # shows = utils.generate_unique_list(channel_shows, 'id')
+            # shows = sorted(shows, key=lambda k: k['title'])
+            shows = sorted(utils.generate_unique_list(
+                channel_shows, 'id'), key=lambda k: k['title'].lower())
+
+        for show in shows:
+            list_item = xbmcgui.ListItem(label=show['title'])
+            list_item.setProperty('IsPlayable', 'false')
+            list_item.setArt({
+                'thumb': show['imageUrl'],
+                'poster': show['imageUrl'],
+                'banner': show['bannerImageUrl'],
+            })
+            list_item.setInfo(
+                'video',
+                {
+                    'title': show['title'],
+                    'plot': show['lead'] or show['description'],
+                }
+            )
+            surl = self.build_url(mode=20, name=show['id'])
+            xbmcplugin.addDirectoryItem(
+                self.handle, surl, list_item, isFolder=True)
 
     def _read_youtube_channels(self, fname):
         """
