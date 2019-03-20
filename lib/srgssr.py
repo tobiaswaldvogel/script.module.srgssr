@@ -1453,8 +1453,6 @@ class SRGSSR(object):
             channel_shows = [
                 self.extract_shows_information(radio_tv, channel['id'])
                 for channel in channels]
-            # shows = utils.generate_unique_list(channel_shows, 'id')
-            # shows = sorted(shows, key=lambda k: k['title'])
             shows = sorted(utils.generate_unique_list(
                 channel_shows, 'id'), key=lambda k: k['title'].lower())
 
