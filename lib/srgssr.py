@@ -332,6 +332,13 @@ class SRGSSR(object):
                 'mode': 46,
                 'displayItem': True,
                 'icon': self.icon,
+            }, {
+                # Live radio
+                'identifier': 'Live_Radio',
+                'name': 'Live Radio',
+                'mode': 47,
+                'displayItem': True,
+                'icon': self.icon
             }
         ]
         for item in main_menu_list:
@@ -1097,12 +1104,15 @@ class SRGSSR(object):
         play_item = xbmcgui.ListItem('Live', path=auth_url)
         xbmcplugin.setResolvedUrl(self.handle, True, play_item)
 
-    def manage_favourite_shows(self):
+    def manage_favourite_shows(self, audio=False):
         """
         Opens a Kodi multiselect dialog to let the user choose
         his/her personal favourite show list.
         """
-        show_list = self.read_all_available_shows()
+        if audio:
+            show_list = self.extract_shows_information('radio')
+        else:
+            show_list = self.read_all_available_shows()
         stored_favids = self.read_favourite_show_ids()
         names = [x['title'] for x in show_list]
         ids = [x['id'] for x in show_list]
@@ -1399,6 +1409,20 @@ class SRGSSR(object):
             self.log('extract_show_information: Invalid value for radio_tv')
             return
 
+        # It is not possible to get all the radio shows by dumping
+        # the channel id. In this case we need to make seperate requests
+        # for every radio channel and merge the results:
+        if radio_tv == 'radio' and not channel_id:
+            channels = self.get_radio_channels()
+            # TODO: In the future, this should be done by multiprocessing
+            # for the platforms that support it
+            channel_shows = [
+                self.extract_shows_information(
+                    radio_tv, channel_id=channel['id']
+                    ) for channel in channels]
+            return sorted(utils.generate_unique_list(
+                channel_shows, 'id'), key=lambda k: k['title'].lower())
+
         url = '%s/play/%s/shows/alphabetical-sections' % (
             self.host_url, radio_tv)
         if channel_id:
@@ -1430,7 +1454,7 @@ class SRGSSR(object):
                 })
         return shows
 
-    def build_shows_menu(self, radio_tv, channel_id=None):
+    def build_shows_menu(self, radio_tv, channel_id=None, favids=None):
         """
         Builds a menu of available shows.
 
@@ -1439,22 +1463,18 @@ class SRGSSR(object):
         channel_id  -- a channel id, if it is desired to build the show menu
                        for a given channel, otherwise use None
                        (default: None)
+        favids      -- a list of show ids; if it is set, only the shows
+                       in that list will be included in the menu (provided
+                       that the shows still exist in the media library)
+                       (default: None)
         """
         if radio_tv not in ('radio', 'tv'):
             self.log('build_shows_menu: Invalid value for radio_tv')
             return
 
-        if channel_id:
-            shows = self.extract_shows_information(radio_tv, channel_id)
-        else:
-            channels = self.get_radio_channels()
-            # TODO: In the future, this should be done by multiprocessing
-            # for the platforms that support it
-            channel_shows = [
-                self.extract_shows_information(radio_tv, channel['id'])
-                for channel in channels]
-            shows = sorted(utils.generate_unique_list(
-                channel_shows, 'id'), key=lambda k: k['title'].lower())
+        shows = self.extract_shows_information(radio_tv, channel_id=channel_id)
+        if favids is not None:
+            shows = [show for show in shows if show['id'] in favids]
 
         for show in shows:
             list_item = xbmcgui.ListItem(label=show['title'])
@@ -1474,6 +1494,21 @@ class SRGSSR(object):
             surl = self.build_url(mode=20, name=show['id'])
             xbmcplugin.addDirectoryItem(
                 self.handle, surl, list_item, isFolder=True)
+
+    # TODO: Merge this with build_favourite_shows_menu
+    def build_favourite_radio_shows_menu(self):
+        favids = self.read_favourite_show_ids()
+        self.build_shows_menu('radio', favids=favids)
+
+    def build_live_radio_menu(self):
+        channels = self.get_radio_channels()
+        for ch in channels:
+            list_item = xbmcgui.ListItem(label=ch['name'])
+            list_item.setProperty('IsPlayable', 'true')
+            list_item.setInfo('music', {'title': ch['name']})
+            purl = self.build_url(mode=50, name=ch['id'])
+            xbmcplugin.addDirectoryItem(
+                self.handle, purl, list_item, isFolder=False)
 
     def _read_youtube_channels(self, fname):
         """
