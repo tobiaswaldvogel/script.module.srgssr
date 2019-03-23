@@ -1283,7 +1283,7 @@ class SRGSSR(object):
             for vid in srf3_ids:
                 self.build_episode_menu(vid, include_segments=False)
 
-    def get_radio_channels(self, raw=False):
+    def get_radio_channels(self):
         """
         Gets all the radio channels which have content in the media library.
         It returns a list of dictionaries, containing the channel id (key: id)
@@ -1293,21 +1293,39 @@ class SRGSSR(object):
         raw  -- boolean value; if set, the method returns the parsed requested
                 json instead of the simplified data (default: False)
         """
+        cache_id = self.addon_id + '.radio_channels'
+        channels = self.cache.get(cache_id)
+        if channels:
+            return channels
+
         url = '%s/play/radio/live/overview' % self.host_url
         channel_json = json.loads(self.open_url(url))
         channel_list = utils.try_get(
             channel_json, 'overview', data_type=list, default=[])
-        if raw:
-            return channel_list
+
         channels = []
         for ch in channel_list:
             name = utils.try_get(ch, 'name')
             channel_id = utils.try_get(
                 ch, 'id') or utils.try_get(ch, 'channelId')
+            if not (channel_id and name):
+                continue
+            url = ('https://il.srgssr.ch/integrationlayer/2.0/%s/'
+                   'mediaComposition/audio/%s.json') % (self.bu, channel_id)
+
+            # TODO: error handling
+            detailed_content = json.loads(self.open_url(url))
+            image = utils.try_get(
+                detailed_content, ('episode', 'imageUrl')) or utils.try_get(
+                detailed_content, ('show', 'imageUrl')) or utils.try_get(
+                detailed_content, ('channel', 'imageUrl'))
             channels.append({
                 'name': name,
                 'id': channel_id,
+                'image': image,
             })
+        self.cache.set(
+            cache_id, channels, expiration=datetime.timedelta(days=10))
         return channels
 
     def build_radio_channels_menu(self):
@@ -1319,6 +1337,9 @@ class SRGSSR(object):
         for ch in channels:
             list_item = xbmcgui.ListItem(label=ch['name'])
             list_item.setProperty('IsPlayable', 'false')
+            list_item.setArt({
+                'thumb': ch['image'],
+            })
             purl = self.build_url(41, name=ch['id'])
             xbmcplugin.addDirectoryItem(
                 self.handle, purl, list_item, isFolder=True)
@@ -1330,23 +1351,37 @@ class SRGSSR(object):
         Keyword arguments:
         channel_id  -- the channel id of the given radio channel
         """
-        shows_item = xbmcgui.ListItem(label='Shows')
-        shows_item.setProperty('IsPlayable', 'false')
-        purl = self.build_url(42, name=channel_id)
-        xbmcplugin.addDirectoryItem(
-            self.handle, purl, shows_item, isFolder=True)
+        thumbnail = next((
+            e['image'] for e in self.get_radio_channels()
+            if e['id'] == channel_id), '')
+        menu_list = [
+            {
+                'identifier': 'Shows',
+                'name': 'Shows',
+                'mode': 42,
+                'icon': thumbnail,
+            }, {
+                'identifier': 'Newest_Audios',
+                'name': 'Newest audios',
+                'mode': 43,
+                'icon': thumbnail,
+            }, {
+                'identifier': 'Most_Listened',
+                'name': 'Most listened',
+                'mode': 44,
+                'icon': thumbnail,
+            }
+        ]
 
-        newest_item = xbmcgui.ListItem(label='Newest audios')
-        newest_item.setProperty('IsPlayable', 'false')
-        purl = self.build_url(43, name=channel_id)
-        xbmcplugin.addDirectoryItem(
-            self.handle, purl, newest_item, isFolder=True)
-
-        most_item = xbmcgui.ListItem(label='Most listened')
-        most_item.setProperty('IsPlayable', 'false')
-        purl = self.build_url(44, name=channel_id)
-        xbmcplugin.addDirectoryItem(
-            self.handle, purl, most_item, isFolder=True)
+        for item in menu_list:
+            list_item = xbmcgui.ListItem(label=item['name'])
+            list_item.setProperty('IsPlayable', 'false')
+            list_item.setArt({
+                'thumb': thumbnail,
+            })
+            purl = self.build_url(mode=item['mode'], name=channel_id)
+            xbmcplugin.addDirectoryItem(
+                self.handle, purl, list_item, isFolder=True)
 
     def build_audio_menu(self, playlist, mode, channel_id=None, page=1):
         """
