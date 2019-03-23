@@ -305,13 +305,6 @@ class SRGSSR(object):
                 'displayItem': self.get_boolean_setting('RTR_YouTube'),
                 'icon': self.get_youtube_icon(),
             }, {
-                # Shows
-                'identifier': 'Shows',
-                'name': 'Shows',
-                'mode': 42,
-                'displayItem': True,
-                'icon': self.icon,
-            }, {
                 # Radio channels
                 'identifier': 'Radio_Channels',
                 'name': 'Channels',
@@ -352,6 +345,8 @@ class SRGSSR(object):
                     handle=self.handle, url=purl,
                     listitem=list_item, isFolder=True)
 
+    # TODO: Check, if this can be replaced by extract_shows_information,
+    # like it is already done for radio shows.
     def read_all_available_shows(self):
         """
         Downloads a list of all available shows and returns this list.
@@ -441,7 +436,7 @@ class SRGSSR(object):
         favourite_show_ids = self.read_favourite_show_ids()
         self.build_all_shows_menu(favids=favourite_show_ids)
 
-    def build_newest_favourite_menu(self, page=1):
+    def build_newest_favourite_menu(self, page=1, audio=False):
         """
         Builds a Kodi list of the newest favourite shows.
 
@@ -458,10 +453,11 @@ class SRGSSR(object):
         current_month_date = datetime.date.today().strftime('%m-%Y')
         list_of_episodes_dict = []
         banners = {}
+        section = 'radio' if audio else 'tv'
         for sid in show_ids:
-            json_url = ('%s/play/tv/show/%s/latestEpisodes?numberOfEpisodes=%d'
-                        '&tillMonth=%s') % (self.host_url, sid, number_of_days,
-                                            current_month_date)
+            json_url = ('%s/play/%s/show/%s/latestEpisodes?numberOfEpisodes=%d'
+                        '&tillMonth=%s') % (self.host_url, section, sid,
+                                            number_of_days, current_month_date)
             self.log('build_newest_favourite_menu. Open URL %s.' % json_url)
             response = json.loads(self.open_url(json_url))
             banner_image = utils.try_get(
@@ -495,7 +491,7 @@ class SRGSSR(object):
             is_folder = True if segments and self.segments else False
             self.build_entry(
                 episode, banner=utils.try_get(episode, 'id'),
-                is_folder=is_folder)
+                is_folder=is_folder, audio=audio)
 
         if len(sorted_list_of_episodes_dict) > page * self.number_of_episodes:
             next_item = xbmcgui.ListItem(
@@ -756,9 +752,11 @@ class SRGSSR(object):
         json_chapter_list = utils.try_get(
             json_response, 'chapterList', data_type=list, default=[])
         json_chapter = None
-        for chapter in json_chapter_list:
+        chapter_index = -1
+        for (ind, chapter) in enumerate(json_chapter_list):
             if utils.try_get(chapter, 'id') == chapter_id:
                 json_chapter = chapter
+                chapter_index = ind
                 break
         if not json_chapter:
             self.log('build_episode_menu: No chapter ID found \
@@ -769,9 +767,19 @@ class SRGSSR(object):
             json_chapter, 'segmentList', data_type=list, default=[])
         if video_id == chapter_id:
             if include_segments:
+
+                # if audio and chapter_index == 0:
+                #     for aid in json_chapter_list[1:]:
+                #         self.build_entry(aid, banner)
+
                 # Generate entries for the whole video and
                 # all the segments of this video.
                 self.build_entry(json_chapter, banner)
+
+                if audio and chapter_index == 0:
+                    for aid in json_chapter_list[1:]:
+                        self.build_entry(aid, banner)
+
                 for segment in json_segment_list:
                     self.build_entry(segment, banner)
             else:
@@ -1029,7 +1037,8 @@ class SRGSSR(object):
 
         if audio:
             for resource in resource_list:
-                if utils.try_get(resource, 'protocol') in ('HTTP', 'HTTPS'):
+                if utils.try_get(resource, 'protocol') in ('HTTP', 'HTTPS',
+                                                           'HTTP-MP3-STREAM'):
                     for key in ('SD', 'HD'):
                         if utils.try_get(resource, 'quality') == key:
                             stream_urls[key] = utils.try_get(resource, 'url')
