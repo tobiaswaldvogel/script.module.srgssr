@@ -331,7 +331,14 @@ class SRGSSR(object):
                 'name': 'Live Radio',
                 'mode': 47,
                 'displayItem': True,
-                'icon': self.icon
+                'icon': self.icon,
+            }, {
+                # Radio shows (by topic)
+                'identifier': 'Radio_Topics',
+                'name': 'Shows (by topic)',
+                'mode': 48,
+                'displayItem': True,
+                'icon': self.icon,
             }
         ]
         for item in main_menu_list:
@@ -1497,6 +1504,45 @@ class SRGSSR(object):
                     'bannerImageUrl': utils.try_get(se, 'bannerImageUrl'),
                 })
         return shows
+
+    def extract_radio_topics(self):
+        url = '%s/play/radio/topic/shows/module' % self.host_url
+        content = self.open_url(url)
+        datareg = r'topic\s*in\s*(?P<data>.+?)"'
+        data_match = re.search(datareg, content, re.DOTALL)
+        data = data_match.group('data')
+        data = data.replace('&quot;', '"').replace('&amp;', '&')
+        json_data = json.loads(data, strict=False)
+
+        topic_list = []
+        for entry in json_data:
+            title = utils.try_get(entry, 'title')
+            url = utils.try_get(entry, 'url')
+            if title and url:
+                topic_list.append({
+                    'title': title,
+                    'url': url,
+                })
+        return topic_list
+
+    def build_radio_topics_menu(self):
+        topic_list = self.extract_radio_topics()
+        for entry in topic_list:
+            list_item = xbmcgui.ListItem(label=entry['title'])
+            list_item.setArt({
+                'icon': self.icon,
+            })
+            purl = self.build_url(mode=49, name=entry['url'])
+            list_item.setProperty('IsPlayable', 'false')
+            xbmcplugin.addDirectoryItem(
+                self.handle, purl, list_item, isFolder=True)
+
+    def build_radio_shows_by_topic(self, url):
+        url = '%s%s' % (self.host_url, url)
+        json_content = json.loads(self.open_url(url))
+        ids = [utils.try_get(x, 'id') for x in utils.try_get(
+            json_content, 'teaser', list, []) if utils.try_get(x, 'id')]
+        self.build_shows_menu('radio', favids=ids)
 
     def build_shows_menu(self, radio_tv, channel_id=None, favids=None):
         """
