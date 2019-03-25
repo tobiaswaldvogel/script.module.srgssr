@@ -1444,6 +1444,29 @@ class SRGSSR(object):
         except IndexError:
             return
 
+    def parse_embedded_json(self, url, regex):
+        """
+        Parses embedded json content from a webpage.
+
+        Keyword arguments:
+        url    -- the url of the webpage to load
+        regex  -- a regular expression containing a subgroup for the
+                  embedded json
+        """
+        self.log('parse_embedded_json: url = %s, regex = %s' % (url, regex))
+        webpage = self.open_url(url)
+        match = re.search(regex, webpage, re.DOTALL)
+        if not match:
+            self.log('parse_embedded_json: Unable to find regular expression')
+            return {}
+        data = match.group(1).replace('&quot;', '"').replace('&amp;', '&')
+        try:
+            parsed = json.loads(data, strict=False)
+        except Exception:
+            self.log('parse_embedded_json: Unable to parse json')
+            parsed = {}
+        return parsed
+
     def extract_shows_information(self, radio_tv, channel_id=None):
         """
         Extracts the relevant information (like show id, title, description,
@@ -1480,12 +1503,8 @@ class SRGSSR(object):
             char = '?' if '?' not in url else '&'
             url += '%schannelId=%s' % (char, channel_id)
 
-        content = self.open_url(url)
-        datareg = r'data-alphabetical-sections="(?P<data>.+?)"'
-        data_match = re.search(datareg, content, re.DOTALL)
-        data = data_match.group('data')
-        data = data.replace('&quot;', '"').replace('&amp;', '&')
-        json_data = json.loads(data, strict=False)
+        json_data = self.parse_embedded_json(
+            url, r'data-alphabetical-sections="(.+?)"')
 
         shows = []
         for entry in json_data:
@@ -1506,13 +1525,13 @@ class SRGSSR(object):
         return shows
 
     def extract_radio_topics(self):
+        """
+        Extracts a list of the hosted radio topics. Each entry is a
+        dictionary with keys 'title' and 'url'. The url consists
+        only of the path.
+        """
         url = '%s/play/radio/topic/shows/module' % self.host_url
-        content = self.open_url(url)
-        datareg = r'topic\s*in\s*(?P<data>.+?)"'
-        data_match = re.search(datareg, content, re.DOTALL)
-        data = data_match.group('data')
-        data = data.replace('&quot;', '"').replace('&amp;', '&')
-        json_data = json.loads(data, strict=False)
+        json_data = self.parse_embedded_json(url, r'topic\s*in\s*(.+?)"')
 
         topic_list = []
         for entry in json_data:
@@ -1526,6 +1545,9 @@ class SRGSSR(object):
         return topic_list
 
     def build_radio_topics_menu(self):
+        """
+        Builds a menu for the hosted radio topics.
+        """
         topic_list = self.extract_radio_topics()
         for entry in topic_list:
             list_item = xbmcgui.ListItem(label=entry['title'])
