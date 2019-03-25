@@ -791,11 +791,6 @@ class SRGSSR(object):
             json_chapter, 'segmentList', data_type=list, default=[])
         if video_id == chapter_id:
             if include_segments:
-
-                # if audio and chapter_index == 0:
-                #     for aid in json_chapter_list[1:]:
-                #         self.build_entry(aid, banner)
-
                 # Generate entries for the whole video and
                 # all the segments of this video.
                 self.build_entry(json_chapter, banner)
@@ -1029,7 +1024,7 @@ class SRGSSR(object):
         audio    -- boolean value to indicate if the content is
                     audio (default: False)
         """
-        self.log('play_video, video_id = %s' % video_id)
+        self.log('play_video, video_id = %s, audio=%s' % (video_id, audio))
         content_type = 'audio' if audio else 'video'
         json_url = ('https://il.srgssr.ch/integrationlayer/2.0/%s/'
                     'mediaComposition/%s/%s.json') % (self.bu, content_type,
@@ -1317,6 +1312,7 @@ class SRGSSR(object):
         raw  -- boolean value; if set, the method returns the parsed requested
                 json instead of the simplified data (default: False)
         """
+        self.log('get_radio_channels')
         cache_id = self.addon_id + '.radio_channels'
         channels = self.cache.get(cache_id)
         if channels:
@@ -1357,6 +1353,7 @@ class SRGSSR(object):
         Builds a menu containing folders of the available radio channels which
         have content in the media library.
         """
+        self.log('build_radio_channels_menu')
         channels = self.get_radio_channels()
         for ch in channels:
             list_item = xbmcgui.ListItem(label=ch['name'])
@@ -1375,6 +1372,7 @@ class SRGSSR(object):
         Keyword arguments:
         channel_id  -- the channel id of the given radio channel
         """
+        self.log('build_radio_channel_overview')
         thumbnail = next((
             e['image'] for e in self.get_radio_channels()
             if e['id'] == channel_id), '')
@@ -1420,6 +1418,8 @@ class SRGSSR(object):
                        otherwise use None (default: None)
         page        -- the page number to display (default: 1)
         """
+        self.log('build_audio_menu, playlist = %s, mode = %s, channel_id = %s,'
+                 ' page = %s' % (playlist, mode, channel_id, page))
         number_of_audios = 50
         if playlist == 'Newest':
             ptype = 'latest'
@@ -1452,7 +1452,6 @@ class SRGSSR(object):
             next_item = xbmcgui.ListItem(
                 label='>> ' + LANGUAGE(30073))  # Next page
             next_item.setProperty('IsPlayable', 'false')
-            # name = topic_id if topic_id else ''
             name = channel_id
             purl = self.build_url(mode=mode, name=name, page=page+1)
             xbmcplugin.addDirectoryItem(
@@ -1496,6 +1495,8 @@ class SRGSSR(object):
                        information for a given channel, otherwise use None
                        (default: None)
         """
+        self.log('extract_shows_information, radio_tv = %s,'
+                 ' channel_id = %s' % (radio_tv, channel_id))
         if radio_tv not in ('radio', 'tv'):
             self.log('extract_show_information: Invalid value for radio_tv')
             return
@@ -1547,6 +1548,7 @@ class SRGSSR(object):
         dictionary with keys 'title' and 'url'. The url consists
         only of the path.
         """
+        self.log('extract_radio_topics')
         url = '%s/play/radio/topic/shows/module' % self.host_url
         json_data = self.parse_embedded_json(url, r'topic\s*in\s*(.+?)"')
 
@@ -1565,6 +1567,7 @@ class SRGSSR(object):
         """
         Builds a menu for the hosted radio topics.
         """
+        self.log('build_radio_topics_menu')
         topic_list = self.extract_radio_topics()
         for entry in topic_list:
             list_item = xbmcgui.ListItem(label=entry['title'])
@@ -1577,6 +1580,7 @@ class SRGSSR(object):
                 self.handle, purl, list_item, isFolder=True)
 
     def build_radio_shows_by_topic(self, url):
+        self.log('build_radio_shows_by_topic, url = %s' % url)
         url = '%s%s' % (self.host_url, url)
         json_content = json.loads(self.open_url(url))
         ids = [utils.try_get(x, 'id') for x in utils.try_get(
@@ -1597,6 +1601,8 @@ class SRGSSR(object):
                        that the shows still exist in the media library)
                        (default: None)
         """
+        self.log('build_shows_menu, radio_tv = %s, channel_id = %s'
+                 'favids = %s' % (radio_tv, channel_id, favids))
         if radio_tv not in ('radio', 'tv'):
             self.log('build_shows_menu: Invalid value for radio_tv')
             return
@@ -1626,10 +1632,12 @@ class SRGSSR(object):
 
     # TODO: Merge this with build_favourite_shows_menu
     def build_favourite_radio_shows_menu(self):
+        self.log('build_favourite_radio_shows_menu')
         favids = self.read_favourite_show_ids()
         self.build_shows_menu('radio', favids=favids)
 
     def build_live_radio_menu(self):
+        self.log('build_live_radio_menu')
         channels = self.get_radio_channels()
         for ch in channels:
             list_item = xbmcgui.ListItem(label=ch['name'])
