@@ -1618,6 +1618,7 @@ class SRGSSR(object):
             list_item = xbmcgui.ListItem(label=ch['name'])
             list_item.setProperty('IsPlayable', 'true')
             list_item.setInfo('music', {'title': ch['name']})
+            list_item.setArt({'thumb': ch['image']})
             purl = self.build_url(mode=50, name=ch['id'])
             xbmcplugin.addDirectoryItem(
                 self.handle, purl, list_item, isFolder=False)
