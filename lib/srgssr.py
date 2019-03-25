@@ -341,8 +341,10 @@ class SRGSSR(object):
                 'icon': self.icon,
             }
         ]
-        for item in main_menu_list:
-            if item['displayItem'] and item['identifier'] in identifiers:
+        for identifier in identifiers:
+            item = next((e for e in main_menu_list if
+                         e['identifier'] == identifier), None)
+            if item and item['displayItem']:
                 list_item = xbmcgui.ListItem(item['name'])
                 list_item.setProperty('IsPlayable', 'false')
                 list_item.setArt({'thumb': item['icon']})
