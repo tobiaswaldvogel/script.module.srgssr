@@ -350,13 +350,21 @@ class SRGSSR(object):
         self.build_folder_menu(folders)
 
     def build_folder_menu(self, folders):
+        """
+        Builds a menu from a list of folder dictionaries. Each dictionary
+        must have the key 'name' and can have the keys 'identifier', 'mode',
+        'displayItem', 'icon', 'purl' (a dictionary to build the plugin url).
+        """
         for item in folders:
-            if item['displayItem']:
+            if item.get('displayItem') is not False:
                 list_item = xbmcgui.ListItem(label=item['name'])
                 list_item.setProperty('IsPlayable', 'false')
                 list_item.setArt({'thumb': item['icon']})
+                purl_dict = item.get('purl', {})
+                mode = purl_dict.get('mode') or item.get('mode')
+                uname = purl_dict.get('name') or item.get('identifier')
                 purl = self.build_url(
-                    mode=item['mode'], name=item['identifier'])
+                    mode=mode, name=uname)
                 xbmcplugin.addDirectoryItem(
                     handle=self.handle, url=purl,
                     listitem=list_item, isFolder=True)
@@ -1374,30 +1382,30 @@ class SRGSSR(object):
             {
                 'identifier': 'Shows',
                 'name': 'Shows',
-                'mode': 42,
                 'icon': thumbnail,
+                'purl': {
+                    'name': channel_id,
+                    'mode': 42,
+                },
             }, {
                 'identifier': 'Newest_Audios',
                 'name': 'Newest audios',
-                'mode': 43,
                 'icon': thumbnail,
+                'purl': {
+                    'name': channel_id,
+                    'mode': 43,
+                },
             }, {
                 'identifier': 'Most_Listened',
                 'name': 'Most listened',
-                'mode': 44,
                 'icon': thumbnail,
+                'purl': {
+                    'name': channel_id,
+                    'mode': 44,
+                },
             }
         ]
-
-        for item in menu_list:
-            list_item = xbmcgui.ListItem(label=item['name'])
-            list_item.setProperty('IsPlayable', 'false')
-            list_item.setArt({
-                'thumb': thumbnail,
-            })
-            purl = self.build_url(mode=item['mode'], name=channel_id)
-            xbmcplugin.addDirectoryItem(
-                self.handle, purl, list_item, isFolder=True)
+        self.build_folder_menu(menu_list)
 
     def build_audio_menu(self, playlist, mode, channel_id=None, page=1):
         """
