@@ -341,11 +341,18 @@ class SRGSSR(object):
                 'icon': self.icon,
             }
         ]
-        for identifier in identifiers:
+        folders = []
+        for ide in identifiers:
             item = next((e for e in main_menu_list if
-                         e['identifier'] == identifier), None)
-            if item and item['displayItem']:
-                list_item = xbmcgui.ListItem(item['name'])
+                         e['identifier'] == ide), None)
+            if item:
+                folders.append(item)
+        self.build_folder_menu(folders)
+
+    def build_folder_menu(self, folders):
+        for item in folders:
+            if item['displayItem']:
+                list_item = xbmcgui.ListItem(label=item['name'])
                 list_item.setProperty('IsPlayable', 'false')
                 list_item.setArt({'thumb': item['icon']})
                 purl = self.build_url(
