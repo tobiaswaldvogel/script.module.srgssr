@@ -309,7 +309,7 @@ class SRGSSR(object):
                 'identifier': 'Radio_Channels',
                 'name': self.plugin_language(30075),
                 'mode': 40,
-                'displayItem': True,
+                'displayItem': self.get_boolean_setting('Radio_Channels'),
                 'icon': self.icon,
             }, {
                 # Newest audios
@@ -323,21 +323,21 @@ class SRGSSR(object):
                 'identifier': 'Most_Listened',
                 'name': self.plugin_language(30077),
                 'mode': 46,
-                'displayItem': True,
+                'displayItem': self.get_boolean_setting('Most_Listened'),
                 'icon': self.icon,
             }, {
                 # Live radio
                 'identifier': 'Live_Radio',
                 'name': self.plugin_language(30078),
                 'mode': 47,
-                'displayItem': True,
+                'displayItem': self.get_boolean_setting('Live_Radio'),
                 'icon': self.icon,
             }, {
                 # Shows (by topic)
                 'identifier': 'Shows_Topics',
                 'name': self.plugin_language(30079),
                 'mode': 48,
-                'displayItem': True,
+                'displayItem': self.get_boolean_setting('Shows_Topics'),
                 'icon': self.icon,
             }
         ]
