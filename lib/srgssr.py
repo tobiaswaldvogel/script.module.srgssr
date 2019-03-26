@@ -1348,6 +1348,52 @@ class SRGSSR(object):
             cache_id, channels, expiration=datetime.timedelta(days=10))
         return channels
 
+    def get_live_radio_channels(self):
+        """
+        Tries to get the direct stream urls of the three radio channels
+        Radio Swiss Pop, Radio Swiss Classic and Radio Swiss Jazz. If the
+        stream url can be found, the radio channel dictionary (keys are
+        'name', 'url', 'image', 'stream') will be appended to the list
+        which will be returned at the end.
+        """
+        uri = ('special://home/addons/%s/resources/media') % ADDON_ID
+        radio_info = [
+            {
+                'name': 'Radio Swiss Pop',
+                'url': 'http://www.radioswisspop.ch/de',
+                'image': os.path.join(
+                    xbmc.translatePath(uri), 'icon_radioswisspop.png'),
+            }, {
+                'name': 'Radio Swiss Classic',
+                'url': 'http://www.radioswissclassic.ch/de',
+                'image': os.path.join(
+                    xbmc.translatePath(uri), 'icon_radioswissclassic.png'),
+            }, {
+                'name': 'Radio Swiss Jazz',
+                'url': 'http://www.radioswissjazz.ch/de',
+                'image': os.path.join(
+                    xbmc.translatePath(uri), 'icon_radioswissjazz.png'),
+            }]
+        live_radio_list = []
+        regex = r'title\s*:\s*"[^"]+?".+?mp3\s*:\s*"(?P<stream>[^"]+?)"'
+        for info in radio_info:
+            try:
+                webpage = self.open_url(info['url'])
+            except Exception:
+                self.log('get_live_radio_channels: Unable to open '
+                         'webpage %s' % info['url'])
+                continue
+            match = re.search(regex, webpage)
+            if not match:
+                self.log('get_live_radio_channels: Unable to extract stream '
+                         'for %s' % info['name'])
+                continue
+            info.update({
+                'stream': match.group('stream')
+            })
+            live_radio_list.append(info)
+        return live_radio_list
+
     def build_radio_channels_menu(self):
         """
         Builds a menu containing folders of the available radio channels which
@@ -1636,15 +1682,28 @@ class SRGSSR(object):
         favids = self.read_favourite_show_ids()
         self.build_shows_menu('radio', favids=favids)
 
-    def build_live_radio_menu(self):
+    def build_live_radio_menu(self, include_live_only=True):
+        """
+        Builds a Kodi menu for the live radio channels.
+
+        Keyword arguments:
+        include_live_only  -- if set, the three radio channels which
+                              have not an own media library (Radio Swiss Pop,
+                              Radio Swiss Jazz and Radio Swiss Classic) will
+                              be included in the list (default: True)
+        """
         self.log('build_live_radio_menu')
         channels = self.get_radio_channels()
+        channels += self.get_live_radio_channels()
         for ch in channels:
             list_item = xbmcgui.ListItem(label=ch['name'])
             list_item.setProperty('IsPlayable', 'true')
             list_item.setInfo('music', {'title': ch['name']})
             list_item.setArt({'thumb': ch['image']})
-            purl = self.build_url(mode=50, name=ch['id'])
+            try:
+                purl = self.build_url(mode=50, name=ch['id'])
+            except KeyError:
+                purl = self.build_url(mode=51, name=ch['stream'])
             xbmcplugin.addDirectoryItem(
                 self.handle, purl, list_item, isFolder=False)
 
