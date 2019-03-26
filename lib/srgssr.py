@@ -1694,7 +1694,7 @@ class SRGSSR(object):
         """
         self.log('build_live_radio_menu')
         channels = self.get_radio_channels()
-        channels += self.get_live_radio_channels()
+        channels += self.get_live_radio_channels() if include_live_only else []
         for ch in channels:
             list_item = xbmcgui.ListItem(label=ch['name'])
             list_item.setProperty('IsPlayable', 'true')
