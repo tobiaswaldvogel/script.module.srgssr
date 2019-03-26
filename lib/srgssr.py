@@ -305,37 +305,37 @@ class SRGSSR(object):
                 'displayItem': self.get_boolean_setting('RTR_YouTube'),
                 'icon': self.get_youtube_icon(),
             }, {
-                # Radio channels
+                # Channels
                 'identifier': 'Radio_Channels',
-                'name': 'Channels',
+                'name': self.plugin_language(30075),
                 'mode': 40,
                 'displayItem': True,
                 'icon': self.icon,
             }, {
                 # Newest audios
                 'identifier': 'Newest_Audios',
-                'name': 'Newest audios',
+                'name': self.plugin_language(30076),
                 'mode': 45,
-                'displayItem': True,
+                'displayItem': False,
                 'icon': self.icon,
             }, {
                 # Most listened
                 'identifier': 'Most_Listened',
-                'name': 'Most listened',
+                'name': self.plugin_language(30077),
                 'mode': 46,
                 'displayItem': True,
                 'icon': self.icon,
             }, {
                 # Live radio
                 'identifier': 'Live_Radio',
-                'name': 'Live Radio',
+                'name': self.plugin_language(30078),
                 'mode': 47,
                 'displayItem': True,
                 'icon': self.icon,
             }, {
-                # Radio shows (by topic)
-                'identifier': 'Radio_Topics',
-                'name': 'Shows (by topic)',
+                # Shows (by topic)
+                'identifier': 'Shows_Topics',
+                'name': self.plugin_language(30079),
                 'mode': 48,
                 'displayItem': True,
                 'icon': self.icon,
@@ -1379,7 +1379,7 @@ class SRGSSR(object):
         menu_list = [
             {
                 'identifier': 'Shows',
-                'name': 'Shows',
+                'name': self.plugin_language(30080),
                 'icon': thumbnail,
                 'purl': {
                     'name': channel_id,
@@ -1387,7 +1387,7 @@ class SRGSSR(object):
                 },
             }, {
                 'identifier': 'Newest_Audios',
-                'name': 'Newest audios',
+                'name': self.plugin_language(30076),
                 'icon': thumbnail,
                 'purl': {
                     'name': channel_id,
@@ -1395,7 +1395,7 @@ class SRGSSR(object):
                 },
             }, {
                 'identifier': 'Most_Listened',
-                'name': 'Most listened',
+                'name': self.plugin_language(30077),
                 'icon': thumbnail,
                 'purl': {
                     'name': channel_id,
