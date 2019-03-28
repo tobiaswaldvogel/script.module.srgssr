@@ -1055,13 +1055,15 @@ class SRGSSR(object):
         }
 
         if audio:
-            for resource in resource_list:
-                if utils.try_get(resource, 'protocol') in ('HTTP', 'HTTPS',
-                                                           'HTTP-MP3-STREAM'):
-                    for key in ('SD', 'HD'):
-                        if utils.try_get(resource, 'quality') == key:
-                            stream_urls[key] = utils.try_get(resource, 'url')
-            stream_url = stream_urls['HD'] or stream_urls['SD']
+            candidates = [res for res in resource_list if utils.try_get(
+                res, 'protocol') in ('HTTP', 'HTTPS', 'HTTP-MP3-STREAM')]
+            for candi in candidates:
+                if utils.try_get(candi, 'quality') in ('HD', 'HQ'):
+                    stream_url = candi['url']
+                    break
+            else:
+                stream_url = candidates[0]['url']
+
             play_item = xbmcgui.ListItem(video_id, path=stream_url)
             xbmcplugin.setResolvedUrl(self.handle, True, play_item)
             return
@@ -1314,7 +1316,8 @@ class SRGSSR(object):
         """
         self.log('get_radio_channels')
         cache_id = self.addon_id + '.radio_channels'
-        channels = self.cache.get(cache_id)
+        # channels = self.cache.get(cache_id)
+        channels = []
         if channels:
             return channels
 
@@ -1326,12 +1329,14 @@ class SRGSSR(object):
         channels = []
         for ch in channel_list:
             name = utils.try_get(ch, 'name')
-            channel_id = utils.try_get(
-                ch, 'id') or utils.try_get(ch, 'channelId')
-            if not (channel_id and name):
+            # channel_id = utils.try_get(
+            #     ch, 'id') or utils.try_get(ch, 'channelId')
+            id = utils.try_get(ch, 'id')
+            channel_id = utils.try_get(ch, 'channelId')
+            if not (id and channel_id and name):
                 continue
             url = ('https://il.srgssr.ch/integrationlayer/2.0/%s/'
-                   'mediaComposition/audio/%s.json') % (self.bu, channel_id)
+                   'mediaComposition/audio/%s.json') % (self.bu, id)
 
             # TODO: error handling
             detailed_content = json.loads(self.open_url(url))
@@ -1339,13 +1344,15 @@ class SRGSSR(object):
                 detailed_content, ('episode', 'imageUrl')) or utils.try_get(
                 detailed_content, ('show', 'imageUrl')) or utils.try_get(
                 detailed_content, ('channel', 'imageUrl'))
+            image = re.sub(r'/\d+x\d+$', '', image)  # needed for RTS
             channels.append({
                 'name': name,
-                'id': channel_id,
+                'id': id,
+                'channelId': channel_id,
                 'image': image,
             })
         self.cache.set(
-            cache_id, channels, expiration=datetime.timedelta(days=10))
+            cache_id, channels, expiration=datetime.timedelta(days=1))
         return channels
 
     def get_live_radio_channels(self):
@@ -1407,7 +1414,7 @@ class SRGSSR(object):
             list_item.setArt({
                 'thumb': ch['image'],
             })
-            purl = self.build_url(41, name=ch['id'])
+            purl = self.build_url(41, name=ch['channelId'])
             xbmcplugin.addDirectoryItem(
                 self.handle, purl, list_item, isFolder=True)
 
@@ -1421,7 +1428,7 @@ class SRGSSR(object):
         self.log('build_radio_channel_overview')
         thumbnail = next((
             e['image'] for e in self.get_radio_channels()
-            if e['id'] == channel_id), '')
+            if e['channelId'] == channel_id), '')
         menu_list = [
             {
                 'identifier': 'Shows',
@@ -1556,7 +1563,7 @@ class SRGSSR(object):
             # for the platforms that support it
             channel_shows = [
                 self.extract_shows_information(
-                    radio_tv, channel_id=channel['id']
+                    radio_tv, channel_id=channel['channelId']
                     ) for channel in channels]
             return sorted(utils.generate_unique_list(
                 channel_shows, 'id'), key=lambda k: k['title'].lower())
@@ -1583,7 +1590,8 @@ class SRGSSR(object):
                     'title': utils.try_get(se, 'title'),
                     'description': utils.try_get(se, 'desription'),
                     'lead': utils.try_get(se, 'lead'),
-                    'imageUrl': utils.try_get(se, 'imageUrl'),
+                    'imageUrl': re.sub(
+                        r'/\d+x\d+$', '', utils.try_get(se, 'imageUrl')),
                     'bannerImageUrl': utils.try_get(se, 'bannerImageUrl'),
                 })
         return shows
@@ -1625,6 +1633,7 @@ class SRGSSR(object):
             xbmcplugin.addDirectoryItem(
                 self.handle, purl, list_item, isFolder=True)
 
+    # Only works for SRF:
     def build_radio_shows_by_topic(self, url):
         self.log('build_radio_shows_by_topic, url = %s' % url)
         url = '%s%s' % (self.host_url, url)
