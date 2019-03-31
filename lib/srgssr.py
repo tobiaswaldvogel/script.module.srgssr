@@ -1592,7 +1592,8 @@ class SRGSSR(object):
                     'lead': utils.try_get(se, 'lead'),
                     'imageUrl': re.sub(
                         r'/\d+x\d+$', '', utils.try_get(se, 'imageUrl')),
-                    'bannerImageUrl': utils.try_get(se, 'bannerImageUrl'),
+                    'bannerImageUrl': re.sub(
+                        r'/\d+x\d+$', '', utils.try_get(se, 'bannerImageUrl')),
                 })
         return shows
 
