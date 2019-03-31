@@ -1364,20 +1364,25 @@ class SRGSSR(object):
         which will be returned at the end.
         """
         uri = ('special://home/addons/%s/resources/media') % ADDON_ID
+        lang = 'de'
+        if self.bu == 'rts':
+            lang = 'fr'
+        elif self.bu == 'rsi':
+            lang = 'it'
         radio_info = [
             {
                 'name': 'Radio Swiss Pop',
-                'url': 'http://www.radioswisspop.ch/de',
+                'url': 'http://www.radioswisspop.ch/%s' % lang,
                 'image': os.path.join(
                     xbmc.translatePath(uri), 'icon_radioswisspop.png'),
             }, {
                 'name': 'Radio Swiss Classic',
-                'url': 'http://www.radioswissclassic.ch/de',
+                'url': 'http://www.radioswissclassic.ch/%s' % lang,
                 'image': os.path.join(
                     xbmc.translatePath(uri), 'icon_radioswissclassic.png'),
             }, {
                 'name': 'Radio Swiss Jazz',
-                'url': 'http://www.radioswissjazz.ch/de',
+                'url': 'http://www.radioswissjazz.ch/%s' % lang,
                 'image': os.path.join(
                     xbmc.translatePath(uri), 'icon_radioswissjazz.png'),
             }]
