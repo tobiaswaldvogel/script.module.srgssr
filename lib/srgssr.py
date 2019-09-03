@@ -271,6 +271,13 @@ class SRGSSR(object):
                 'displayItem': self.get_boolean_setting('SRF_Live'),
                 'icon': self.icon,
             }, {
+                # Search
+                'identifier': 'Search',
+                'name': 'Search',
+                'mode': 27,
+                'displayItem': self.get_boolean_setting('Search'),
+                'icon': self.icon,
+            }, {
                 # SRF on YouTube
                 'identifier': 'SRF_YouTube',
                 'name': self.plugin_language(30074),
@@ -453,6 +460,50 @@ class SRGSSR(object):
         self.log('build_favourite_shows_menu')
         favourite_show_ids = self.read_favourite_show_ids()
         self.build_all_shows_menu(favids=favourite_show_ids)
+
+    def build_show_folder(self, show_id, radio_tv):
+        """
+        Creates a folder for a specified show.
+
+        Keyword arguments:
+        show_id   -- the id of the show
+        radio_tv  -- either 'radio' or 'tv'
+        """
+        if radio_tv not in ('radio', 'tv'):
+            self.log(('build_show_folder: radio_tv must be '
+                      'either \'radio\' or \'tv\''))
+            return
+        query_url = '%s/play/%s/show/%s/latestEpisodes' % (
+            self.host_url, radio_tv, show_id)
+        result = json.loads(self.open_url(query_url, use_cache=True))
+        show_info = utils.try_get(result, 'show', data_type=dict, default={})
+        if not show_info:
+            self.log('build_show_folder: Unable to retrieve show info')
+            return
+        title = utils.try_get(show_info, 'title')
+        if not title:
+            self.log('build_show_folder: Unable to retrieve title')
+            return
+        list_item = xbmcgui.ListItem(label=title)
+        list_item.setProperty('IsPlayable', 'false')
+        list_item.setInfo('video', {
+                'title': title,
+                'plot': utils.try_get(
+                    show_info, 'lead') or utils.try_get(
+                        show_info, 'description')
+            })
+        image = thumbnail = utils.try_get(show_info, 'imageUrl')
+        if not image:
+            image = self.fanart
+            thumbnail = self.icon
+        banner_image = utils.try_get(show_info, 'bannerImageUrl', default=None)
+        list_item.setArt({
+            'thumb': thumbnail,
+            'poster': image,
+            'banner': banner_image
+        })
+        url = self.build_url(mode=20, name=show_id)
+        xbmcplugin.addDirectoryItem(self.handle, url, list_item, isFolder=True)
 
     def build_newest_favourite_menu(self, page=1, audio=False):
         """
@@ -985,6 +1036,134 @@ class SRGSSR(object):
             self.build_episode_menu(
                 vid, include_segments=False,
                 segment_option=self.segments)
+
+    def build_search_menu(self, audio=False):
+        """
+        Builds a menu for searches.
+
+        Keyword arguments:
+        audio  -- Indicates whether audios shall be searched
+                  (default: False).
+        """
+        self.log('build_search_menu, audio = %s' % audio)
+        items = [
+            {
+                # 'Search videos' or 'Search audios'
+                'name': LANGUAGE(30112) if not audio else LANGUAGE(30113),
+                'mode': 28,
+                'show': True,
+                'icon': self.icon,
+            }, {
+                'name': LANGUAGE(30114),  # 'Search shows'
+                'mode': 29,
+                'show': True,
+                'icon': self.icon
+            }
+        ]
+        for item in items:
+            if not item['show']:
+                continue
+            list_item = xbmcgui.ListItem(label=item['name'])
+            list_item.setProperty('IsPlayable', 'false')
+            list_item.setArt(
+                {
+                    'thumb': item['icon']
+                }
+            )
+            url = self.build_url(item['mode'])
+            xbmcplugin.addDirectoryItem(
+                handle=self.handle, url=url, listitem=list_item, isFolder=True)
+
+    def build_search_media_menu(self, mode=28, name='', page=1,
+                                page_hash='', audio=False):
+        """
+        Sets up a search for media. If called without name, a dialog will
+        show up for a search input. Then the search will be performed and
+        the results will be shown in a menu.
+
+        Keyword arguments:
+        mode       -- the plugins mode (default: 28)
+        name       -- the search name (default: '')
+        page       -- the page number (default: 1)
+        page_hash  -- the page hash when coming from a previous page
+                      (default: '')
+        audio      -- boolean value to search for audios instead of
+                      videos (default: False)
+        """
+        self.log(('build_search_media_menu, mode = %s, name = %s, page = %s'
+                  ', page_hash = %s, audio = %s') % (mode, name, page,
+                                                     page_hash, audio))
+        media_type = 'audio' if audio else 'video'
+        url_layout = self.host_url + ('/play/search/media?searchQuery=%s'
+                                      '&numberOfMedias=%s&mediaType=%s'
+                                      '&includeAggregations=false')
+        if name and page_hash:
+            query_string = name
+            query_url = (url_layout + '&nextPageHash=%s') % (
+                query_string, self.number_of_episodes, media_type, page_hash)
+        else:
+            dialog = xbmcgui.Dialog()
+            query_string = dialog.input(LANGUAGE(30115))
+            if not query_string:
+                self.log('build_search_media_menu: No input provided')
+                return
+            if utils.is_python_2():
+                query_string = query_string.encode('utf8')
+            query_string = quote_plus(query_string)
+            query_url = url_layout % (
+                query_string, self.number_of_episodes, media_type)
+        result = json.loads(self.open_url(query_url, use_cache=False))
+        media_ids = [
+            m['id'] for m in utils.try_get(
+                result, 'media', data_type=list,
+                default=[]) if utils.try_get(m, 'id')]
+        for media_id in media_ids:
+            self.build_episode_menu(media_id, audio=audio)
+        next_page_hash = utils.try_get(result, 'nextPageHash')
+        if next_page_hash and page_hash != next_page_hash:
+            next_item = xbmcgui.ListItem(label='>> ' + LANGUAGE(30073))
+            next_item.setProperty('IsPlayable', 'false')
+            next_item.setArt({
+                'thumb': self.icon,
+            })
+            try:
+                page = int(page)
+            except TypeError:
+                page = 1
+            nurl = self.build_url(
+                mode=mode, name=query_string,
+                page_hash=next_page_hash, page=page+1)
+            xbmcplugin.addDirectoryItem(
+                self.handle, nurl, next_item, isFolder=True)
+
+    def build_search_show_menu(self, audio=False):
+        """
+        Peforms a search for shows.
+
+        Keyword arguments:
+        audio  -- boolean; if set, audio shows will be searched, otherwise
+                  video shows (default: False)
+        """
+        self.log('build_search_show_menu, audio = %s' % audio)
+        url_layout = self.host_url + '/play/search/shows?searchQuery=%s'
+        dialog = xbmcgui.Dialog()
+        query_string = dialog.input(LANGUAGE(30115))
+        if not query_string:
+            self.log('build_search_show_menu: No input provided')
+            return
+        if utils.is_python_2():
+            query_string = query_string.encode('utf8')
+        query_string = quote_plus(query_string)
+        query_url = url_layout % query_string
+        result = json.loads(self.open_url(query_url, use_cache=False))
+        indicator = ':radio:' if audio else ':tv:'
+        show_ids = [m['id'] for m in utils.try_get(
+            result, 'shows', data_type=list, default=[]) if (
+                utils.try_get(m, 'id') and
+                indicator in utils.try_get(m, 'urn'))]
+        radio_tv = 'radio' if audio else 'tv'
+        for show_id in show_ids:
+            self.build_show_folder(show_id, radio_tv)
 
     def get_auth_url(self, url, segment_data=None):
         """

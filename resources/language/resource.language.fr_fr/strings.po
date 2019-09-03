@@ -74,3 +74,19 @@ msgstr "Chaînes"
 msgctxt "#30111"
 msgid "Newest videos"
 msgstr "Dernières vidéos"
+
+msgctxt "#30112"
+msgid "Search videos"
+msgstr "Rechercher des vidéos"
+
+msgctxt "#30113"
+msgid "Search audios"
+msgstr "Rechercher des audios"
+
+msgctxt "#30114"
+msgid "Search shows"
+msgstr "Rechercher des émission"
+
+msgctxt "#30115"
+msgid "Enter a search term"
+msgstr "Entrez le terme de recherche"
