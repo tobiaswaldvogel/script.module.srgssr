@@ -678,13 +678,15 @@ class SRGSSR(object):
                     handle=self.handle, url=purl,
                     listitem=list_item, isFolder=True)
 
-    def extract_id_list(self, url):
+    def extract_id_list(self, url, editor_picks=False):
         """
         Opens a webpage and extracts video ids (of the form "id": "<vid>")
         from JavaScript snippets.
 
         Keyword argmuents:
-        url -- the URL of the webpage
+        url           -- the URL of the webpage
+        editor_picks  -- if set, only extracts ids of editor picks
+                         (default: False)
         """
         self.log('extract_id_list, url = %s' % url)
         response = self.open_url(url)
@@ -702,6 +704,8 @@ class SRGSSR(object):
                         )
                         \"
                     ''' % IDREGEX
+        if editor_picks:
+            id_regex += r'.+\"isEditorPick\"\s*:\s*true'
         id_list = [m.group('id') for m in re.finditer(
             id_regex, readable_string_response)]
         return id_list
@@ -720,6 +724,7 @@ class SRGSSR(object):
         self.log('build_topics_menu, name = %s, topic_id = %s, page = %s' %
                  (name, topic_id, page))
         number_of_videos = 50
+        # editor_picks = []
         if name == 'Newest':
             url = '%s/play/tv/topic/%s/latest?numberOfVideos=%s' % (
                 self.host_url, topic_id, number_of_videos)
@@ -737,6 +742,8 @@ class SRGSSR(object):
                    '&onlyEpisodes=true&includeEditorialPicks=true') % (
                        self.host_url, number_of_videos)
             mode = 16
+            # editor_picks = self.extract_id_list(url, editor_picks=True)
+            # self.log('build_topics_menu: editor_picks = %s' % editor_picks)
         else:
             self.log('build_topics_menu: Unknown mode.')
             return
@@ -840,21 +847,22 @@ class SRGSSR(object):
             if include_segments:
                 # Generate entries for the whole video and
                 # all the segments of this video.
-                self.build_entry(json_chapter, banner)
+                self.build_entry(json_chapter, banner=banner)
 
                 if audio and chapter_index == 0:
                     for aid in json_chapter_list[1:]:
-                        self.build_entry(aid, banner)
+                        self.build_entry(aid, banner=banner)
 
                 for segment in json_segment_list:
-                    self.build_entry(segment, banner)
+                    self.build_entry(segment, banner=banner)
             else:
                 if segment_option and json_segment_list:
                     # Generate a folder for the video
-                    self.build_entry(json_chapter, banner, is_folder=True)
+                    self.build_entry(
+                        json_chapter, banner=banner, is_folder=True)
                 else:
                     # Generate a simple playable item for the video
-                    self.build_entry(json_chapter, banner)
+                    self.build_entry(json_chapter, banner=banner)
         else:
             json_segment = None
             for segment in json_segment_list:
