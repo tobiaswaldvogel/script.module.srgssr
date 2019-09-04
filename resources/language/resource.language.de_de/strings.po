@@ -90,3 +90,15 @@ msgstr "Suche Sendungen"
 msgctxt "#30115"
 msgid "Enter a search term"
 msgstr "Suchbegriff eingeben"
+
+msgctxt "#30116"
+msgid "Recently searched videos"
+msgstr "Kürzlich gesuchte Videos"
+
+msgctxt "#30117"
+msgid "Recently searched audios"
+msgstr "Kürzlich gesuchte Audios"
+
+msgctxt "#30118"
+msgid "Recently searched shows"
+msgstr "Kürzlich gesuchte Sendungen"

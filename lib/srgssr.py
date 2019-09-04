@@ -54,6 +54,8 @@ IDREGEX = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+'
 
 FAVOURITE_SHOWS_FILENAME = 'favourite_shows.json'
 YOUTUBE_CHANNELS_FILENAME = 'youtube_channels.json'
+RECENT_SHOW_SEARCHES_FILENAME = 'recently_searched_shows.json'
+RECENT_MEDIA_SEARCHES_FILENAME = 'recently_searched_medias.json'
 
 
 def get_params():
@@ -273,7 +275,7 @@ class SRGSSR(object):
             }, {
                 # Search
                 'identifier': 'Search',
-                'name': 'Search',
+                'name': self.plugin_language(30075),
                 'mode': 27,
                 'displayItem': self.get_boolean_setting('Search'),
                 'icon': self.icon,
@@ -1054,10 +1056,21 @@ class SRGSSR(object):
                 'show': True,
                 'icon': self.icon,
             }, {
+                # 'Recently searched videos' or 'Recently searched audios'
+                'name': LANGUAGE(30116) if not audio else LANGUAGE(30117),
+                'mode': 70,
+                'show': True,
+                'icon': self.icon,
+            }, {
                 'name': LANGUAGE(30114),  # 'Search shows'
                 'mode': 29,
                 'show': True,
-                'icon': self.icon
+                'icon': self.icon,
+            }, {
+                'name': LANGUAGE(30117),  # 'Recently searched shows'
+                'mode': 71,
+                'show': True,
+                'icon': self.icon,
             }
         ]
         for item in items:
@@ -1071,6 +1084,35 @@ class SRGSSR(object):
                 }
             )
             url = self.build_url(item['mode'])
+            xbmcplugin.addDirectoryItem(
+                handle=self.handle, url=url, listitem=list_item, isFolder=True)
+
+    def build_recent_search_menu(self, show_or_media, audio=False):
+        """
+        Lists folders for the most recent searches.
+
+        Keyword arguments:
+        show_or_media  -- either 'show' or 'media'
+        audio          -- search for audios (default: False)
+        """
+        self.log(
+            'build_recent_search_menu, show_or_media = %s, audio = %s' % (
+                show_or_media, audio))
+        if show_or_media not in ('show', 'media'):
+            self.log(('build_recent_search_menu: `show_or_media` must '
+                      'be either \'show\' or \'media\''))
+            return
+        if show_or_media == 'show':
+            filename = RECENT_SHOW_SEARCHES_FILENAME
+        else:
+            filename = RECENT_MEDIA_SEARCHES_FILENAME
+        recent_searches = self.read_searches(filename)
+        mode = 29 if show_or_media == 'show' else 28
+        for search in recent_searches:
+            list_item = xbmcgui.ListItem(label=search)
+            list_item.setProperty('IsPlayable', 'false')
+            list_item.setArt({'thumb': self.icon})
+            url = self.build_url(mode=mode, name=search)
             xbmcplugin.addDirectoryItem(
                 handle=self.handle, url=url, listitem=list_item, isFolder=True)
 
@@ -1097,10 +1139,24 @@ class SRGSSR(object):
         url_layout = self.host_url + ('/play/search/media?searchQuery=%s'
                                       '&numberOfMedias=%s&mediaType=%s'
                                       '&includeAggregations=false')
-        if name and page_hash:
+        if name:
+            # `name` is provided by `next_page` folder or
+            # by previously performed search
             query_string = name
-            query_url = (url_layout + '&nextPageHash=%s') % (
-                query_string, self.number_of_episodes, media_type, page_hash)
+            if page_hash:
+                # `name` is provided by `next_page` folder, so it is
+                # already quoted
+                query_url = (url_layout + '&nextPageHash=%s') % (
+                    query_string, self.number_of_episodes, media_type,
+                    page_hash)
+            else:
+                # `name` is provided by previously performed search, so it
+                # needs to be processed first
+                if utils.is_python_2():
+                    query_string = query_string.encode('utf8')
+                query_string = quote_plus(query_string)
+                query_url = url_layout % (
+                    name, self.number_of_episodes, media_type)
         else:
             dialog = xbmcgui.Dialog()
             query_string = dialog.input(LANGUAGE(30115))
@@ -1109,6 +1165,8 @@ class SRGSSR(object):
                 return
             if utils.is_python_2():
                 query_string = query_string.encode('utf8')
+            if True:
+                self.write_search(RECENT_MEDIA_SEARCHES_FILENAME, query_string)
             query_string = quote_plus(query_string)
             query_url = url_layout % (
                 query_string, self.number_of_episodes, media_type)
@@ -1136,23 +1194,32 @@ class SRGSSR(object):
             xbmcplugin.addDirectoryItem(
                 self.handle, nurl, next_item, isFolder=True)
 
-    def build_search_show_menu(self, audio=False):
+    def build_search_show_menu(self, name='', audio=False):
         """
         Peforms a search for shows.
 
         Keyword arguments:
+        name   -- search query (default: '')
         audio  -- boolean; if set, audio shows will be searched, otherwise
                   video shows (default: False)
         """
-        self.log('build_search_show_menu, audio = %s' % audio)
+        self.log(
+            'build_search_show_menu, name = %s, audio = %s' % (name, audio))
         url_layout = self.host_url + '/play/search/shows?searchQuery=%s'
-        dialog = xbmcgui.Dialog()
-        query_string = dialog.input(LANGUAGE(30115))
-        if not query_string:
-            self.log('build_search_show_menu: No input provided')
-            return
-        if utils.is_python_2():
-            query_string = query_string.encode('utf8')
+        if name:
+            query_string = name
+            if utils.is_python_2():
+                query_string = query_string.encode('utf8')
+        else:
+            dialog = xbmcgui.Dialog()
+            query_string = dialog.input(LANGUAGE(30115))
+            if not query_string:
+                self.log('build_search_show_menu: No input provided')
+                return
+            if utils.is_python_2():
+                query_string = query_string.encode('utf8')
+            if True:
+                self.write_search(RECENT_SHOW_SEARCHES_FILENAME, query_string)
         query_string = quote_plus(query_string)
         query_url = url_layout % query_string
         result = json.loads(self.open_url(query_url, use_cache=False))
@@ -1378,6 +1445,38 @@ class SRGSSR(object):
             os.makedirs(path)
         with open(file_path, 'w') as f:
             json.dump(show_ids_dict_list, f)
+
+    def read_searches(self, filename):
+        path = xbmc.translatePath(self.real_settings.getAddonInfo('profile'))
+        file_path = os.path.join(path, filename)
+        try:
+            with open(file_path, 'r') as f:
+                json_file = json.load(f)
+            try:
+                return[entry['search'] for entry in json_file]
+            except KeyError:
+                self.log('Unexpected file structure for %s.' %
+                         filename)
+                return []
+        except (IOError, TypeError):
+            return []
+
+    def write_search(self, filename, name, max_entries=10):
+        searches = self.read_searches(filename)
+        try:
+            searches.remove(name)
+        except ValueError:
+            pass
+        if len(searches) >= max_entries:
+            searches.pop()
+        searches.insert(0, name)
+        write_dict_list = [{'search': entry} for entry in searches]
+        path = xbmc.translatePath(self.real_settings.getAddonInfo('profile'))
+        file_path = os.path.join(path, filename)
+        if not os.path.exists(path):
+            os.makedirs(path)
+        with open(file_path, 'w') as f:
+            json.dump(write_dict_list, f)
 
     # Live TV is currently not supported due to recently added DRM protection:
     #
