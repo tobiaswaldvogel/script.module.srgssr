@@ -1076,7 +1076,7 @@ class SRGSSR(object):
                 'show': True,
                 'icon': self.icon,
             }, {
-                'name': LANGUAGE(30117),  # 'Recently searched shows'
+                'name': LANGUAGE(30118),  # 'Recently searched shows'
                 'mode': 71,
                 'show': True,
                 'icon': self.icon,
