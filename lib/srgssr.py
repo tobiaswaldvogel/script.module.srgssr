@@ -495,6 +495,7 @@ class SRGSSR(object):
                         show_info, 'description')
             })
         image = thumbnail = utils.try_get(show_info, 'imageUrl')
+        image = re.sub(r'/\d+x\d+', '', image)
         if not image:
             image = self.fanart
             thumbnail = self.icon
