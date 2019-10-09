@@ -275,7 +275,7 @@ class SRGSSR(object):
             }, {
                 # Search
                 'identifier': 'Search',
-                'name': self.plugin_language(30075),
+                'name': self.plugin_language(30085),
                 'mode': 27,
                 'displayItem': self.get_boolean_setting('Search'),
                 'icon': self.icon,
