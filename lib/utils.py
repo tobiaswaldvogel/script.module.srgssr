@@ -380,6 +380,4 @@ def is_python_2():
     Returns true if the major version number of the systems Python
     is less than 2, otherwise false.
     """
-    if sys.version_info[0] < 3:
-        return True
-    return False
+    return sys.version_info[0] < 3
