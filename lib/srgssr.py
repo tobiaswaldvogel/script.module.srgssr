@@ -280,32 +280,12 @@ class SRGSSR(object):
                 'displayItem': self.get_boolean_setting('Search'),
                 'icon': self.icon,
             }, {
-                # SRF on YouTube
-                'identifier': 'SRF_YouTube',
+                # YouTube
+                'identifier': '%s_YouTube' % self.bu.upper(),
                 'name': self.plugin_language(30074),
                 'mode': 30,
-                'displayItem': self.get_boolean_setting('SRF_YouTube'),
-                'icon': self.get_youtube_icon(),
-            }, {
-                # RTS on YouTube
-                'identifier': 'RTS_YouTube',
-                'name': self.plugin_language(30074),
-                'mode': 30,
-                'displayItem': self.get_boolean_setting('RTS_YouTube'),
-                'icon': self.get_youtube_icon(),
-            }, {
-                # RSI on YouTube
-                'identifier': 'RSI_YouTube',
-                'name': self.plugin_language(30074),
-                'mode': 30,
-                'displayItem': self.get_boolean_setting('RSI_YouTube'),
-                'icon': self.get_youtube_icon(),
-            }, {
-                # RTR on YouTube
-                'identifier': 'RTR_YouTube',
-                'name': self.plugin_language(30074),
-                'mode': 30,
-                'displayItem': self.get_boolean_setting('RTR_YouTube'),
+                'displayItem': self.get_boolean_setting(
+                    '%s_YouTube' % self.bu.upper()),
                 'icon': self.get_youtube_icon(),
             }, {
                 # Channels
