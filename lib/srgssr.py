@@ -1466,42 +1466,56 @@ class SRGSSR(object):
             self.log('play_video: no stream URL found. (resourceList empty)')
             return
 
-        stream_urls = {
-            'SD': '',
-            'HD': '',
-        }
+        if not audio:
+            if 'mediaType' in chapter:
+                if chapter['mediaType'].upper() == 'AUDIO': audio = True
 
-        if audio:
-            candidates = [res for res in resource_list if utils.try_get(
-                res, 'protocol') in ('HTTP', 'HTTPS', 'HTTP-MP3-STREAM')]
-            for candi in candidates:
-                if utils.try_get(candi, 'quality') in ('HD', 'HQ'):
-                    stream_url = candi['url']
-                    break
+        if audio: protocols = {'HTTP': '', 'HTTPS': '', 'HTTP-MP3-STREAM': ''}
+        else:     protocols = {'HLS': 'hls', 'DASH': 'mpd' }
+
+        if self.prefer_hd: weight = { 'SD' : 1, 'HD' : 2, 'HQ' : 2 }
+        else:              weight = { 'HD' : 1, 'HQ' : 1, 'SD' : 2 }
+
+        current_weight = -1
+        stream_url = None
+        lic_url = None
+
+        for res in resource_list:
+            try:    res_mf_type = protocols[res['protocol'].upper()]
+            except: continue
+
+            try:    res_weight = weight[res['quality']]
+            except: res_weight = 0
+            if res_weight < current_weight: continue
+
+            if 'drmList' in res:
+                for drm in res['drmList']:
+                    if drm['type'] == 'WIDEVINE':
+                        current_weight = res_weight
+                        mf_type        = res_mf_type
+                        lic_url        = drm['licenseUrl']
+                        lic_type       = 'com.widevine.alpha'
+                        stream_url     = res['url']
             else:
-                stream_url = candidates[0]['url']
+                current_weight = res_weight
+                mf_type        = res_mf_type
+                lic_url        = None
+                stream_url     = res['url']
 
-            play_item = xbmcgui.ListItem(video_id, path=stream_url)
-            xbmcplugin.setResolvedUrl(self.handle, True, play_item)
-            return
-
-        mf_type  = 'hls'
-        for resource in resource_list:
-            if utils.try_get(resource, 'protocol') == 'HLS':
-                for key in ('SD', 'HD'):
-                    if utils.try_get(resource, 'quality') == key:
-                        stream_urls[key] = utils.try_get(resource, 'url')
-
-        if not stream_urls['SD'] and not stream_urls['HD']:
+        if not stream_url:
             self.log('play_video: no stream URL found.')
             return
 
-        stream_url = stream_urls['HD'] if (
-            stream_urls['HD'] and self.prefer_hd)\
-            or not stream_urls['SD'] else stream_urls['SD']
         self.log('play_video, stream_url = %s' % stream_url)
 
+        try:    title    = json_response['episode']['title']
+        except: title = urn
+
         auth_url = self.get_auth_url(stream_url)
+        if audio:
+            play_item =xbmcgui.ListItem(title, path=stream_url)
+            xbmcplugin.setResolvedUrl(self.handle, True, play_item) 
+            return
 
         start_time = end_time = None
         if utils.try_get(json_response, 'segmentUrn'):
@@ -1538,8 +1552,6 @@ class SRGSSR(object):
                     new_query, parsed_url.fragment)
                 auth_url = surl_result.geturl()
         self.log('play_video, auth_url = %s' % auth_url)
-        try: title    = json_response['episode']['title']
-        except: title = urn
         play_item = xbmcgui.ListItem(title, path=auth_url)
         if self.subtitles:
             subs = self.get_subtitles(stream_url, urn)
@@ -1551,6 +1563,15 @@ class SRGSSR(object):
         ia  = 'inputstream.adaptive'
         play_item.setProperty(inp, ia)
         play_item.setProperty(ia + '.manifest_type', mf_type)
+
+        if lic_url:
+            header  = 'Content-Type=application/octet-stream'
+            lic_key = lic_url + '|' + header + '|R{SSM}|'
+            play_item.setProperty(ia + '.license_type', lic_type)
+            play_item.setProperty(ia + '.license_key',  lic_key)
+            play_item.setProperty(ia + '.license_flags', 'persistent_storage')
+            play_item.setProperty(ia + '.manifest_update_parameter', 'full')
+
         xbmcplugin.setResolvedUrl(self.handle, True, play_item)
 
     def get_subtitles(self, url, name):
@@ -1753,6 +1774,36 @@ class SRGSSR(object):
         """
         Builds the menu listing the currently available livestreams.
         """
+        def add_stream_by_urn(urn):
+            detail_url = ('https://il.srgssr.ch/integrationlayer/2.0/'
+                          'mediaComposition/byUrn/' + urn)
+            json_response = json.loads(self.open_url(detail_url))
+            details = json.loads(self.open_url(detail_url))
+            if 'channel' in details:
+                self.build_entry(details['channel'],
+                                 fanart=self.fanart, urn=urn)
+
+        if self.apiv3_url:
+            # TV Channels
+            tv = json.loads(self.open_url(self.apiv3_url + 'tv-livestreams'))
+            if tv and 'data' in tv:
+                for channel in tv['data']:
+                    if 'livestreamUrn' in channel:
+                        add_stream_by_urn(channel['livestreamUrn'])
+            
+            # Radio channles
+            radio = json.loads(self.open_url(self.apiv3_url + 'radio/channels'))
+            if radio and 'data' in radio and 'channels' in radio['data']:
+                for channel in radio['data']['channels']:
+                    self.log('channel ' + channel['title'])
+                    if 'livestreams' in channel:
+                        for stream in channel['livestreams']:
+                            if 'livestreamUrn' in stream:
+                                add_stream_by_urn(stream['livestreamUrn'])
+                                break
+
+            return
+
         def get_live_ids():
             """
             Downloads the main webpage and scrapes it for
